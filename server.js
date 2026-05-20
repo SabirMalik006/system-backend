@@ -42,6 +42,7 @@ app.use('/api/stockin', stockInRoutes);
 app.use('/api/stockout', stockOutRoutes);
 app.use('/api/returns', stockReturnRoutes);
 app.use('/api/items', itemRoutes);
+app.use('/api/vendors', require('./routes/ims/vendorRoutes'));
 app.use('/api/dashboard', require('./routes/ims/dashboardRoutes'));
 
 // Health check

@@ -36,7 +36,7 @@ exports.getItems = async (req, res) => {
       if (status === 'instock') {
         query.status = { $in: ['in_stock', 'low_stock'] };
       } else if (status === 'discontinued') {
-        query.status = 'discontinued'; // Inactive items have this status
+        query.$or = [{ status: 'discontinued' }, { isActive: false }];
       } else if (status === 'lowstock') {
         query.status = 'low_stock';
       } else if (status === 'critical') {
@@ -63,22 +63,8 @@ exports.getItems = async (req, res) => {
     // Format items for frontend display
     const formattedItems = items.map(item => {
       // Determine status display
-      let displayStatus = 'Active';
-      let statusColor = 'text-green-600';
-      
-      if (item.status === 'low_stock') {
-        displayStatus = 'Low Stock';
-        statusColor = 'text-yellow-600';
-      } else if (item.status === 'critical') {
-        displayStatus = 'Critical';
-        statusColor = 'text-orange-600';
-      } else if (item.status === 'out_of_stock') {
-        displayStatus = 'Out of Stock';
-        statusColor = 'text-red-600';
-      } else if (item.status === 'discontinued') {
-        displayStatus = 'Discontinued';
-        statusColor = 'text-gray-500';
-      }
+      let displayStatus = item.isActive !== false ? 'Active' : 'Inactive';
+      let statusColor = item.isActive !== false ? 'text-green-600' : 'text-gray-500';
       
       return {
         id: item._id,
@@ -95,7 +81,8 @@ exports.getItems = async (req, res) => {
         status: displayStatus,
         statusColor,
         originalStatus: item.status,
-        vendorName: item.vendorName || 'N/A'
+        vendorName: item.vendorName || 'N/A',
+        isActive: item.isActive !== false
       };
     });
     
@@ -270,7 +257,7 @@ exports.updateItem = async (req, res) => {
   }
 };
 
-// @desc    Delete item (soft delete)
+// @desc    Delete item (soft delete initially, hard delete if already discontinued)
 // @route   DELETE /api/items/:id
 exports.deleteItem = async (req, res) => {
   try {
@@ -279,6 +266,15 @@ exports.deleteItem = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Item not found' });
     }
     
+    // If already discontinued, perform hard delete
+    if (item.status === 'discontinued' || item.isActive === false) {
+      await item.deleteOne();
+      return res.json({
+        success: true,
+        message: 'Item permanently deleted'
+      });
+    }
+
     // Soft delete
     item.isActive = false;
     item.status = 'discontinued';
@@ -286,7 +282,7 @@ exports.deleteItem = async (req, res) => {
     
     res.json({
       success: true,
-      message: 'Item deleted successfully'
+      message: 'Item moved to discontinued'
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
