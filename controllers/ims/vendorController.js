@@ -1,4 +1,5 @@
 const Vendor = require('../../models/Vendor');
+const { logAudit } = require('../../utils/auditLogger');
 
 // @desc    Get all vendors
 // @route   GET /api/vendors
@@ -117,6 +118,15 @@ exports.createVendor = async (req, res) => {
       message: 'Vendor created successfully',
       vendor: newVendor
     });
+
+    await logAudit({
+      user: req.user,
+      action: 'CREATE',
+      module: 'Vendors',
+      resource: `Vendor ${newVendor.name}`,
+      status: 'SUCCESS',
+      details: { vendorId: newVendor._id, name: newVendor.name }
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -158,6 +168,15 @@ exports.updateVendor = async (req, res) => {
       message: 'Vendor updated successfully',
       vendor
     });
+
+    await logAudit({
+      user: req.user,
+      action: 'UPDATE',
+      module: 'Vendors',
+      resource: `Vendor ${vendor.name}`,
+      status: 'SUCCESS',
+      details: { vendorId: vendor._id, name: vendor.name }
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -178,6 +197,15 @@ exports.deleteVendor = async (req, res) => {
     res.json({
       success: true,
       message: 'Vendor permanently deleted'
+    });
+
+    await logAudit({
+      user: req.user,
+      action: 'DELETE',
+      module: 'Vendors',
+      resource: `Vendor ${vendor.name}`,
+      status: 'SUCCESS',
+      details: { vendorId: vendor._id }
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

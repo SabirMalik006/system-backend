@@ -2,6 +2,7 @@ const Transaction = require('../../models/Transaction');
 const Item = require('../../models/Item');
 const Vendor = require('../../models/Vendor');
 const mongoose = require('mongoose');
+const { logAudit } = require('../../utils/auditLogger');
 
 // Helper: Generate unique entry ID
 function generateEntryId() {
@@ -158,6 +159,16 @@ exports.createStockInTransaction = async (req, res) => {
       transaction: transaction[0],
       newStock: item.currentStock
     });
+
+    // Log audit
+    await logAudit({
+      user: req.user,
+      action: 'CREATE',
+      module: 'Purchases',
+      resource: `Stock In ${quantity} for ${item.sku}`,
+      status: 'SUCCESS',
+      details: { transactionId: transaction[0]._id, quantity }
+    });
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
@@ -195,6 +206,15 @@ exports.updateStockInTransaction = async (req, res) => {
       message: 'Transaction updated successfully',
       transaction: updatedTransaction
     });
+
+    await logAudit({
+      user: req.user,
+      action: 'UPDATE',
+      module: 'Purchases',
+      resource: `Stock In Transaction ${transaction._id}`,
+      status: 'SUCCESS',
+      details: { transactionId: transaction._id, updates }
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -227,6 +247,15 @@ exports.deleteStockInTransaction = async (req, res) => {
     session.endSession();
 
     res.json({ success: true, message: 'Transaction deleted and stock reversed' });
+
+    await logAudit({
+      user: req.user,
+      action: 'DELETE',
+      module: 'Purchases',
+      resource: `Stock In Transaction ${req.params.id}`,
+      status: 'SUCCESS',
+      details: { transactionId: req.params.id, type: 'IN' }
+    });
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
@@ -399,6 +428,15 @@ exports.createNewItem = async (req, res) => {
       success: true,
       message: 'New item created successfully',
       item: newItem
+    });
+
+    await logAudit({
+      user: req.user,
+      action: 'CREATE',
+      module: 'Inventory',
+      resource: `Item ${newItem.sku || newItem.name}`,
+      status: 'SUCCESS',
+      details: { itemId: newItem._id, name: newItem.name }
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

@@ -2,6 +2,7 @@ const Item = require('../../models/Item');
 const Transaction = require('../../models/Transaction');
 const Vendor = require('../../models/Vendor');
 const mongoose = require('mongoose');
+const { logAudit } = require('../../utils/auditLogger');
 
 // ==================== ITEM CRUD OPERATIONS ====================
 
@@ -197,6 +198,16 @@ exports.createItem = async (req, res) => {
       message: 'Item created successfully',
       item: newItem
     });
+
+    // Log the audit event
+    await logAudit({
+      user: req.user,
+      action: 'CREATE',
+      module: 'Inventory',
+      resource: `Item ${newItem.sku || newItem.name}`,
+      status: 'SUCCESS',
+      details: { itemId: newItem._id, name: newItem.name }
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -252,6 +263,16 @@ exports.updateItem = async (req, res) => {
       message: 'Item updated successfully',
       item
     });
+
+    // Log the audit event
+    await logAudit({
+      user: req.user,
+      action: 'UPDATE',
+      module: 'Inventory',
+      resource: `Item ${item.sku || item.name}`,
+      status: 'SUCCESS',
+      details: { itemId: item._id, name: item.name }
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -273,6 +294,17 @@ exports.deleteItem = async (req, res) => {
         success: true,
         message: 'Item permanently deleted'
       });
+      
+      // Log audit
+      await logAudit({
+        user: req.user,
+        action: 'DELETE',
+        module: 'Inventory',
+        resource: `Item ${item.sku || item.name}`,
+        status: 'SUCCESS',
+        details: { itemId: item._id, type: 'HARD_DELETE' }
+      });
+      return;
     }
 
     // Soft delete
@@ -283,6 +315,16 @@ exports.deleteItem = async (req, res) => {
     res.json({
       success: true,
       message: 'Item moved to discontinued'
+    });
+
+    // Log audit
+    await logAudit({
+      user: req.user,
+      action: 'DELETE',
+      module: 'Inventory',
+      resource: `Item ${item.sku || item.name}`,
+      status: 'SUCCESS',
+      details: { itemId: item._id, type: 'SOFT_DELETE' }
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -509,6 +551,16 @@ exports.updateStockLevel = async (req, res) => {
         change: quantity
       },
       transaction: transaction[0]
+    });
+
+    // Log audit
+    await logAudit({
+      user: req.user,
+      action: 'CREATE',
+      module: 'Inventory',
+      resource: `Stock ${type} for ${item.sku || item.name}`,
+      status: 'SUCCESS',
+      details: { itemId: item._id, quantity, type }
     });
   } catch (error) {
     await session.abortTransaction();

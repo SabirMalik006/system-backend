@@ -2,6 +2,7 @@ const Transaction = require('../../models/Transaction');
 const Item = require('../../models/Item');
 const User = require('../../models/User');
 const mongoose = require('mongoose');
+const { logAudit } = require('../../utils/auditLogger');
 
 // ==================== DASHBOARD APIs ====================
 
@@ -552,6 +553,15 @@ exports.createStockOut = async (req, res) => {
       newStock: item.currentStock,
       needsApproval: status === 'PENDING'
     });
+
+    await logAudit({
+      user: req.user,
+      action: 'CREATE',
+      module: status === 'PENDING' ? 'Approvals' : 'Inventory',
+      resource: `Stock Out Request for ${item.sku}`,
+      status: 'SUCCESS',
+      details: { transactionId: transaction[0]._id, quantity, approvalStatus: status }
+    });
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
@@ -600,6 +610,15 @@ exports.approveStockOut = async (req, res) => {
       success: true,
       message: 'Stock out approved successfully',
       transaction
+    });
+
+    await logAudit({
+      user: req.user,
+      action: 'APPROVE',
+      module: 'Approvals',
+      resource: `Stock Out Transaction ${transaction._id}`,
+      status: 'SUCCESS',
+      details: { transactionId: transaction._id }
     });
   } catch (error) {
     await session.abortTransaction();
@@ -654,6 +673,15 @@ exports.rejectStockOut = async (req, res) => {
       success: true,
       message: 'Stock out rejected and stock restored',
       transaction
+    });
+
+    await logAudit({
+      user: req.user,
+      action: 'REJECT',
+      module: 'Approvals',
+      resource: `Stock Out Transaction ${transaction._id}`,
+      status: 'SUCCESS',
+      details: { transactionId: transaction._id, reason }
     });
   } catch (error) {
     await session.abortTransaction();

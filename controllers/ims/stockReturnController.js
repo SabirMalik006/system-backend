@@ -2,6 +2,7 @@ const StockReturn = require('../../models/StockReturn');
 const Transaction = require('../../models/Transaction');
 const Item = require('../../models/Item');
 const mongoose = require('mongoose');
+const { logAudit } = require('../../utils/auditLogger');
 
 // ==================== DASHBOARD APIs ====================
 
@@ -330,6 +331,15 @@ exports.createStockReturn = async (req, res) => {
       discardQuantity,
       status
     });
+
+    await logAudit({
+      user: req.user,
+      action: 'CREATE',
+      module: 'Returns',
+      resource: `Stock Return ${stockReturn[0].returnId}`,
+      status: 'SUCCESS',
+      details: { returnId: stockReturn[0]._id, quantity }
+    });
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
@@ -400,6 +410,15 @@ exports.updateReturnStatus = async (req, res) => {
       success: true,
       message: `Return ${status.toLowerCase()} successfully`,
       return: stockReturn
+    });
+
+    await logAudit({
+      user: req.user,
+      action: 'UPDATE',
+      module: 'Returns',
+      resource: `Stock Return ${stockReturn.returnId}`,
+      status: 'SUCCESS',
+      details: { returnId: stockReturn._id, newStatus: status }
     });
   } catch (error) {
     await session.abortTransaction();
