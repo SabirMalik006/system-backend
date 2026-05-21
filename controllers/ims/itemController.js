@@ -28,7 +28,8 @@ exports.getItems = async (req, res) => {
         { name: { $regex: search, $options: 'i' } },
         { sku: { $regex: search, $options: 'i' } },
         { _id: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } }
+        { description: { $regex: search, $options: 'i' } },
+        { barcode: { $regex: search, $options: 'i' } }
       ];
     }
     
@@ -114,6 +115,24 @@ exports.getItemById = async (req, res) => {
     
     if (!item) {
       return res.status(404).json({ success: false, message: 'Item not found' });
+    }
+    
+    res.json({ success: true, item });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get single item by barcode
+// @route   GET /api/items/barcode/:barcode
+exports.getItemByBarcode = async (req, res) => {
+  try {
+    const item = await Item.findOne({ barcode: req.params.barcode, isActive: true })
+      .populate('vendorId', 'name rating performanceScore')
+      .populate('alternativeVendors.vendorId', 'name rating');
+    
+    if (!item) {
+      return res.status(404).json({ success: false, message: 'Item not found with this barcode' });
     }
     
     res.json({ success: true, item });
@@ -278,7 +297,7 @@ exports.updateItem = async (req, res) => {
   }
 };
 
-// @desc    Delete item (soft delete initially, hard delete if already discontinued)
+// @desc    Delete item (hard delete)
 // @route   DELETE /api/items/:id
 exports.deleteItem = async (req, res) => {
   try {
@@ -287,36 +306,13 @@ exports.deleteItem = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Item not found' });
     }
     
-    // If already discontinued, perform hard delete
-    if (item.status === 'discontinued' || item.isActive === false) {
-      await item.deleteOne();
-      return res.json({
-        success: true,
-        message: 'Item permanently deleted'
-      });
-      
-      // Log audit
-      await logAudit({
-        user: req.user,
-        action: 'DELETE',
-        module: 'Inventory',
-        resource: `Item ${item.sku || item.name}`,
-        status: 'SUCCESS',
-        details: { itemId: item._id, type: 'HARD_DELETE' }
-      });
-      return;
-    }
-
-    // Soft delete
-    item.isActive = false;
-    item.status = 'discontinued';
-    await item.save();
+    await item.deleteOne();
     
     res.json({
       success: true,
-      message: 'Item moved to discontinued'
+      message: 'Item permanently deleted'
     });
-
+    
     // Log audit
     await logAudit({
       user: req.user,
@@ -324,7 +320,7 @@ exports.deleteItem = async (req, res) => {
       module: 'Inventory',
       resource: `Item ${item.sku || item.name}`,
       status: 'SUCCESS',
-      details: { itemId: item._id, type: 'SOFT_DELETE' }
+      details: { itemId: item._id, type: 'HARD_DELETE' }
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

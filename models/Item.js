@@ -304,6 +304,13 @@ itemSchema.pre('save', function(next) {
     const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
     this.sku = `${prefix}-${random}`;
   }
+
+  // Auto-generate Barcode if not provided
+  if (!this.barcode) {
+    const timestampPart = Date.now().toString().slice(-8);
+    const randomPart = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    this.barcode = timestampPart + randomPart;
+  }
   
   // Update status based on currentStock and isActive
   if (!this.isActive) {

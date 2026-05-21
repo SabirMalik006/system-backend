@@ -42,6 +42,11 @@ router.get('/export',
   itemController.exportItems
 );
 
+router.get('/barcode/:barcode',
+  checkPermission('ims_items', 'read'),
+  itemController.getItemByBarcode
+);
+
 router.get('/:id',
   checkPermission('ims_items', 'read'),
   itemController.getItemById
