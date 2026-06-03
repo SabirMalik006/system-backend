@@ -47,45 +47,73 @@ exports.getVolumeRadar = async (req, res) => {
     // Volume vs occupancy data (12 months)
     const volumeData = [];
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const currentYear = new Date().getFullYear();
     
+    // Get total capacity and current stock for occupancy calculation
+    const items = await Item.find({ isActive: true });
+    const totalCapacity = items.reduce((sum, item) => sum + (item.maximumStock || 1000), 0);
+    const totalCurrentStock = items.reduce((sum, item) => sum + item.currentStock, 0);
+    const actualOccupancyPct = totalCapacity > 0 ? Math.round((totalCurrentStock / totalCapacity) * 100) : 0;
+
     for (let i = 0; i < months.length; i++) {
-      const startDate = new Date(2025, i, 1);
-      const endDate = new Date(2025, i + 1, 0);
+      const startDate = new Date(currentYear, i, 1);
+      const endDate = new Date(currentYear, i + 1, 0);
       
-      const returns = await StockReturn.countDocuments({
-        createdAt: { $gte: startDate, $lte: endDate }
-      });
+      const returns = await StockReturn.aggregate([
+        { $match: { createdAt: { $gte: startDate, $lte: endDate } } },
+        { $group: { _id: null, count: { $sum: 1 }, value: { $sum: { $multiply: ['$quantity', '$unitPrice'] } } } }
+      ]);
       
-      // Calculate occupancy percentage (based on total stock capacity)
-      const occupancy = Math.min(95, Math.max(50, 65 + returns - 15 + Math.sin(i) * 10));
+      const returnCount = returns[0]?.count || 0;
+      const returnValue = returns[0]?.value || 0;
+      
+      // Calculate a semi-dynamic occupancy for trend visualization if historical data isn't fully available
+      const monthlyOccupancy = Math.min(95, Math.max(20, actualOccupancyPct - (6 - i) * 2 + Math.sin(i) * 5));
       
       volumeData.push({
         month: months[i],
-        returns: returns || Math.floor(Math.random() * 15) + 12,
-        occupancy: Math.floor(occupancy)
+        returns: returnCount,
+        returnValue: returnValue,
+        occupancy: Math.floor(monthlyOccupancy)
       });
     }
     
     // Radar chart data
     const radarAxes = ['Stock in', 'Stock Out', 'Returns', 'Current Stock', 'Alerts'];
-    const unitA = [0.85, 0.75, 0.80, 0.70, 0.90];
-    const unitB = [0.60, 0.65, 0.55, 0.75, 0.65];
     
-    // Get actual radar values from database
+    // Get actual radar values for Unit A (Overall)
     const totalStockIn = await Transaction.countDocuments({ type: 'IN' });
     const totalStockOut = await Transaction.countDocuments({ type: 'OUT' });
     const totalReturns = await StockReturn.countDocuments();
     const totalItems = await Item.countDocuments({ isActive: true });
     const criticalAlerts = await Item.countDocuments({ status: 'critical' });
     
-    const maxValues = Math.max(totalStockIn, totalStockOut, totalReturns, totalItems, criticalAlerts || 100);
+    const maxValues = Math.max(totalStockIn, totalStockOut, totalReturns, totalItems, criticalAlerts || 10, 100);
     
     const actualUnitA = [
       totalStockIn / maxValues,
       totalStockOut / maxValues,
       totalReturns / maxValues,
       totalItems / maxValues,
-      Math.min(1, criticalAlerts / 100)
+      Math.min(1, criticalAlerts / (totalItems || 10))
+    ];
+
+    // Get actual radar values for Unit B (Main Warehouse as a sample unit)
+    const warehouse = 'Main Warehouse';
+    const whStockIn = await Transaction.countDocuments({ type: 'IN', warehouse });
+    const whStockOut = await Transaction.countDocuments({ type: 'OUT', warehouse });
+    const whReturns = await StockReturn.countDocuments({ restockedToWarehouse: warehouse });
+    const whItems = await Item.countDocuments({ isActive: true, warehouse });
+    const whCritical = await Item.countDocuments({ status: 'critical', warehouse });
+
+    const whMax = Math.max(whStockIn, whStockOut, whReturns, whItems, whCritical || 5, 50);
+
+    const actualUnitB = [
+      whStockIn / whMax,
+      whStockOut / whMax,
+      whReturns / whMax,
+      whItems / whMax,
+      Math.min(1, whCritical / (whItems || 5))
     ];
     
     res.json({
@@ -94,7 +122,7 @@ exports.getVolumeRadar = async (req, res) => {
       radar: {
         axes: radarAxes,
         unitA: actualUnitA,
-        unitB: unitB
+        unitB: actualUnitB
       }
     });
   } catch (error) {

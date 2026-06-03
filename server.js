@@ -18,9 +18,10 @@ const app = express();
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: process.env.NODE_ENV === 'development' ? 10000 : 100,
   message: 'Too many requests from this IP'
 });
+app.use('/api', limiter);
 
 // Middleware
 app.use(express.json());

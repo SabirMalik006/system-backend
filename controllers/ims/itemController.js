@@ -571,7 +571,7 @@ exports.getLowStockItems = async (req, res) => {
   try {
     const lowStockItems = await Item.find({
       isActive: true,
-      currentStock: { $lt: '$threshold' }
+      $expr: { $lt: ["$currentStock", "$threshold"] }
     })
     .sort({ currentStock: 1 })
     .limit(10)
@@ -582,6 +582,7 @@ exports.getLowStockItems = async (req, res) => {
       items: lowStockItems
     });
   } catch (error) {
+    console.error('Error in getLowStockItems (Items):', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

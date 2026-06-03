@@ -53,10 +53,10 @@ exports.getPendingVsApproved = async (req, res) => {
 
     const approvedChange = lastMonthApproved > 0 
       ? (((approvedCount - lastMonthApproved) / lastMonthApproved) * 100).toFixed(0)
-      : 12;
+      : 0;
     const pendingChange = lastMonthPending > 0
       ? (((pendingCount - lastMonthPending) / lastMonthPending) * 100).toFixed(0)
-      : -5;
+      : 0;
 
     res.json({
       success: true,
@@ -120,29 +120,46 @@ exports.getStockTrend = async (req, res) => {
     const stockLevels = [];
     const issuedItems = [];
     
-    let currentStock = totalStock;
-    let previousIssued = 0;
+    // In a real system, we'd query historical stock levels from a snapshots table
+    // For now, we'll calculate it by starting from current stock and going backwards
+    let runningStock = totalStock;
     
-    for (let i = days; i >= 0; i--) {
+    // Get all transactions (IN and OUT) for the period to calculate historical stock
+    const periodTransactions = await Transaction.find({
+      transactionDate: { $gte: startDate, $lte: endDate },
+      status: 'APPROVED'
+    }).sort({ transactionDate: -1 });
+
+    for (let i = 0; i <= days; i++) {
       const date = new Date();
       date.setDate(date.getDate() - i);
       const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       
-      // Find issuance for this date
+      // Find issuance for this specific day
       const issuance = issuanceData.find(d => 
         d._id.day === date.getDate() && 
         d._id.month === date.getMonth() + 1
       );
       
-      const issued = issuance ? issuance.totalIssued : Math.floor(Math.random() * 100) + 80;
+      const issued = issuance ? issuance.totalIssued : 0;
       
-      // Simulate stock level (in real scenario, would be from daily snapshots)
-      // For now, generate realistic looking data
-      const stock = totalStock - (issued * 0.8);
+      // Find all transactions on this day to adjust running stock for previous day
+      const dayTrans = periodTransactions.filter(t => 
+        t.transactionDate.getDate() === date.getDate() && 
+        t.transactionDate.getMonth() === date.getMonth()
+      );
       
-      dates.push(dateStr);
-      stockLevels.push(Math.max(100, Math.min(500, Math.floor(stock))));
-      issuedItems.push(issued);
+      // Stock level at the end of this day is the current runningStock
+      // (Before we subtract today's net change to get yesterday's stock)
+      dates.unshift(dateStr);
+      stockLevels.unshift(Math.floor(runningStock));
+      issuedItems.unshift(issued);
+
+      // Adjust running stock for the previous day's calculation
+      dayTrans.forEach(t => {
+        if (t.type === 'IN' || t.type === 'RETURN') runningStock -= t.quantity;
+        else if (t.type === 'OUT') runningStock += t.quantity;
+      });
     }
 
     // Calculate averages
@@ -157,7 +174,9 @@ exports.getStockTrend = async (req, res) => {
         issued: issuedItems[i]
       })),
       averages: {
-        stock: avgStock,
+        avgStock,
+        avgIssued,
+        stock: avgStock, // for backward compatibility
         issued: avgIssued
       },
       lastUpdated: new Date().toLocaleString()
@@ -231,16 +250,16 @@ exports.getIssuanceByUnit = async (req, res) => {
       };
     });
 
-    // Donut chart segments
-    const donutSegments = [
-      { pct: 0.25, color: '#1E4D7B', path: '/items' },
-      { pct: 0.20, color: '#1A8FA0', path: '/procurement-management' },
-      { pct: 0.20, color: '#163A50', path: '/reports' },
-      { pct: 0.35, color: '#1A6FC4', path: '/stock-returns' }
-    ];
+    // Donut chart segments - Dynamically generated from formattedData
+    const donutSegments = formattedData.map(d => ({
+      pct: d.percentage / 100,
+      color: d.color,
+      path: '/items' // Default path
+    }));
 
     // Database load simulation (from system metrics)
-    const dbLoad = 12.4;
+    // In a real system, this would come from process.cpuUsage() or similar
+    const dbLoad = (Math.random() * 15 + 5).toFixed(1);
 
     res.json({
       success: true,
@@ -258,12 +277,15 @@ exports.getIssuanceByUnit = async (req, res) => {
 // @route   GET /api/stockout/workflow-status
 exports.getWorkflowStatus = async (req, res) => {
   try {
-    // Get data for 4 periods
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth();
+
+    // Get data for last 4 quarters or appropriate periods
     const periods = [
-      { name: 'Aug 24', date: new Date(2024, 7, 1) },  // August 2024
-      { name: 'Aug 25', date: new Date(2025, 7, 1) },  // August 2025
-      { name: 'Feb 26', date: new Date(2026, 1, 1) },  // February 2026
-      { name: 'Aug 28', date: new Date(2028, 7, 1) }   // August 2028
+      { name: `Q3 ${currentYear-1}`, date: new Date(currentYear-1, 6, 1) },
+      { name: `Q4 ${currentYear-1}`, date: new Date(currentYear-1, 9, 1) },
+      { name: `Q1 ${currentYear}`, date: new Date(currentYear, 0, 1) },
+      { name: `Q2 ${currentYear}`, date: new Date(currentYear, 3, 1) }
     ];
 
     const result = [];
@@ -294,24 +316,23 @@ exports.getWorkflowStatus = async (req, res) => {
       const qtyIssued = stats.find(s => s._id === 'approved')?.total || 
                         stats.find(s => s._id === 'fulfilled')?.total || 0;
       const fulfillment = stats.find(s => s._id === 'approved')?.total || 
-                          stats.find(s => s._id === 'fulfilled')?.total || 
-                          Math.floor(Math.random() * 100) + 200;
-      const pending = stats.find(s => s._id === 'pending_approval')?.total || 
-                      Math.floor(Math.random() * 50) + 20;
-      const denied = stats.find(s => s._id === 'denied')?.total || 
-                     Math.floor(Math.random() * 70) + 10;
+                          stats.find(s => s._id === 'fulfilled')?.total || 0;
+      const pending = stats.find(s => s._id === 'pending_approval')?.total || 0;
+      const denied = stats.find(s => s._id === 'denied')?.total || 0;
 
       result.push({
         period: period.name,
-        qty: qtyIssued || Math.floor(Math.random() * 100) + 100,
+        qty: qtyIssued,
         fulfillment: fulfillment,
         pending: pending,
         denied: denied
       });
     }
 
-    // Moving average (decrement trend)
-    const movingAvg = [90, 75, 65, 110];
+    // Moving average (decrement trend) - Calculate based on historical data if possible
+    // For now, keep it calculated as an average of the results
+    const avgQty = result.reduce((sum, r) => sum + r.qty, 0) / result.length;
+    const movingAvg = result.map(() => Math.round(avgQty));
 
     res.json({
       success: true,
@@ -332,7 +353,7 @@ exports.getLowStockItems = async (req, res) => {
   try {
     const lowStockItems = await Item.find({
       isActive: true,
-      currentStock: { $lt: '$threshold' }
+      $expr: { $lt: ["$currentStock", "$threshold"] }
     })
     .sort({ currentStock: 1 })
     .limit(3)
@@ -350,31 +371,19 @@ exports.getLowStockItems = async (req, res) => {
       
       return {
         name: item.name,
-        stock: `STOCK: ${item.currentStock}`,
-        reorder: `REORDER: ${item.threshold}`,
+        stock: item.currentStock,
+        reorder: item.threshold,
         status: status,
         icon: icon
       };
     });
-
-    // If less than 3 items, add sample data
-    if (formattedItems.length < 3) {
-      const samples = [
-        { name: 'Lithium Battery', stock: 'STOCK: 12', reorder: 'REORDER: 50', status: 'CRITICAL', icon: 'Battery' },
-        { name: 'M12G Filters', stock: 'STOCK: 45', reorder: 'REORDER: 100', status: 'LOW', icon: 'Filter' },
-        { name: 'Safety Helmet - M2', stock: 'STOCK: 08', reorder: 'REORDER: 40', status: 'CRITICAL', icon: 'Users' }
-      ];
-      
-      while (formattedItems.length < 3) {
-        formattedItems.push(samples[formattedItems.length]);
-      }
-    }
 
     res.json({
       success: true,
       items: formattedItems
     });
   } catch (error) {
+    console.error('Error in getLowStockItems:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -435,6 +444,7 @@ exports.getRecentIssuanceHistory = async (req, res) => {
       const formattedHours = hours % 12 || 12;
       
       return {
+        _mongoId: trans._id,
         id: trans.referenceId || `STK-${date.getFullYear()}-${Math.floor(Math.random() * 10000)}`,
         date: date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
         time: `${formattedHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`,

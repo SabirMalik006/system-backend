@@ -425,11 +425,16 @@ itemSchema.methods.getStockHistory = async function(days = 30) {
 itemSchema.statics.getLowStockItems = async function(includeCritical = true) {
   const query = {
     isActive: true,
-    currentStock: { $lt: '$threshold' }
+    $expr: { $lt: ["$currentStock", "$threshold"] }
   };
   
   if (!includeCritical) {
-    query.currentStock = { $gte: { $multiply: ['$threshold', 0.3] }, $lt: '$threshold' };
+    query.$expr = {
+      $and: [
+        { $gte: ["$currentStock", { $multiply: ["$threshold", 0.3] }] },
+        { $lt: ["$currentStock", "$threshold"] }
+      ]
+    };
   }
   
   return await this.find(query).populate('vendorId', 'name rating');
@@ -439,7 +444,7 @@ itemSchema.statics.getLowStockItems = async function(includeCritical = true) {
 itemSchema.statics.getCriticalItems = async function() {
   return await this.find({
     isActive: true,
-    currentStock: { $lt: { $multiply: ['$threshold', 0.3] } }
+    $expr: { $lt: ["$currentStock", { $multiply: ["$threshold", 0.3] }] }
   }).populate('vendorId', 'name rating');
 };
 
@@ -513,8 +518,8 @@ itemSchema.statics.getDashboardStats = async function() {
       { $match: { isActive: true } },
       { $group: { _id: null, total: { $sum: { $multiply: ['$currentStock', '$unitPrice'] } } } }
     ]),
-    this.countDocuments({ isActive: true, currentStock: { $lt: '$threshold' } }),
-    this.countDocuments({ isActive: true, currentStock: { $lt: { $multiply: ['$threshold', 0.3] } } }),
+    this.countDocuments({ isActive: true, $expr: { $lt: ["$currentStock", "$threshold"] } }),
+    this.countDocuments({ isActive: true, $expr: { $lt: ["$currentStock", { $multiply: ["$threshold", 0.3] }] } }),
     this.countDocuments({ isActive: true, currentStock: 0 }),
     this.getStockSummaryByCategory()
   ]);
@@ -534,7 +539,7 @@ itemSchema.statics.getDashboardStats = async function() {
 itemSchema.statics.getReorderItems = async function() {
   return await this.find({
     isActive: true,
-    currentStock: { $lte: '$reorderPoint' }
+    $expr: { $lte: ["$currentStock", "$reorderPoint"] }
   })
   .populate('vendorId', 'name leadTime rating')
   .sort({ currentStock: 1 });

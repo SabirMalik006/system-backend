@@ -176,7 +176,7 @@ stockReturnSchema.statics.getKPIs = async function() {
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
   
-  const [totalReturns, pendingReturns, itemsRecovered, damagedItems, avgProcessingHours] = await Promise.all([
+  const [totalReturns, pendingReturns, itemsRecovered, damagedItems, avgProcessingHours, totalValue] = await Promise.all([
     this.countDocuments({ createdAt: { $gte: startOfMonth } }),
     this.countDocuments({ status: 'PENDING', createdAt: { $gte: startOfMonth } }),
     this.aggregate([
@@ -190,6 +190,10 @@ stockReturnSchema.statics.getKPIs = async function() {
     this.aggregate([
       { $match: { status: 'COMPLETED', createdAt: { $gte: startOfMonth } } },
       { $group: { _id: null, avg: { $avg: '$processingHours' } } }
+    ]),
+    this.aggregate([
+      { $match: { createdAt: { $gte: startOfMonth } } },
+      { $group: { _id: null, total: { $sum: { $multiply: ['$quantity', '$unitPrice'] } } } }
     ])
   ]);
   
@@ -211,6 +215,10 @@ stockReturnSchema.statics.getKPIs = async function() {
       value: totalReturns,
       change: changeFromLastMonth,
       trend: changeFromLastMonth >= 0 ? 'up' : 'down'
+    },
+    totalValue: {
+      value: totalValue[0]?.total || 0,
+      label: 'Total financial impact'
     },
     pendingPosting: {
       value: pendingReturns,

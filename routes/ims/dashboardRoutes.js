@@ -22,6 +22,16 @@ router.get('/health',
   dashboardController.getDashboardHealth
 );
 
+router.get('/stats',
+  checkPermission('dashboard', 'read'),
+  dashboardController.getKPIStats
+);
+
+router.get('/stock-movement',
+  checkPermission('dashboard', 'read'),
+  dashboardController.getStockMovementBreakdown
+);
+
 router.get('/all',
   checkPermission('dashboard', 'read'),
   dashboardController.getAllDashboardData

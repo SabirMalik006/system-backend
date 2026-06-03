@@ -155,7 +155,7 @@ exports.getDashboardHealth = async (req, res) => {
     const total = totalTransactions || 1;
     const normalPct = ((total - returnedItems - damagedItems) / total * 100).toFixed(0);
     const returnedPct = (returnedItems / total * 100).toFixed(0);
-    const damagedPct = (damagedItems / total * 100).tofixed(0);
+    const damagedPct = (damagedItems / total * 100).toFixed(0);
     
     // Risk assessment
     const criticalItems = await Item.countDocuments({ status: 'critical' });
@@ -173,6 +173,107 @@ exports.getDashboardHealth = async (req, res) => {
           safePercentage: normalPct,
           risk: risk
         }
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get stock movement breakdown (In vs Out)
+// @route   GET /api/dashboard/stock-movement
+exports.getStockMovementBreakdown = async (req, res) => {
+  try {
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 11);
+    twelveMonthsAgo.setDate(1);
+    twelveMonthsAgo.setHours(0, 0, 0, 0);
+
+    const movementData = await Transaction.aggregate([
+      {
+        $match: {
+          transactionDate: { $gte: twelveMonthsAgo },
+          type: { $in: ['IN', 'OUT'] }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$transactionDate' },
+            month: { $month: '$transactionDate' },
+            type: '$type'
+          },
+          total: { $sum: '$quantity' }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            year: '$_id.year',
+            month: '$_id.month'
+          },
+          in: {
+            $sum: {
+              $cond: [{ $eq: ['$_id.type', 'IN'] }, '$total', 0]
+            }
+          },
+          out: {
+            $sum: {
+              $cond: [{ $eq: ['$_id.type', 'OUT'] }, '$total', 0]
+            }
+          }
+        }
+      },
+      { $sort: { '_id.year': 1, '_id.month': 1 } }
+    ]);
+
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    
+    // Fill in missing months
+    const formattedData = [];
+    let current = new Date(twelveMonthsAgo);
+    const now = new Date();
+
+    while (current <= now) {
+      const year = current.getFullYear();
+      const month = current.getMonth() + 1;
+      
+      const found = movementData.find(d => d._id.year === year && d._id.month === month);
+      
+      formattedData.push({
+        month: months[current.getMonth()],
+        in: found ? found.in : 0,
+        out: found ? found.out : 0
+      });
+      
+      current.setMonth(current.getMonth() + 1);
+    }
+
+    res.json({
+      success: true,
+      data: formattedData
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get dashboard KPI stats
+// @route   GET /api/dashboard/stats
+exports.getKPIStats = async (req, res) => {
+  try {
+    const [stats, pendingOrders, totalVendors] = await Promise.all([
+      Item.getDashboardStats(),
+      Transaction.countDocuments({ type: 'IN', status: 'PENDING' }),
+      Vendor.countDocuments({ isActive: true })
+    ]);
+
+    res.json({
+      success: true,
+      stats: {
+        ...stats,
+        pendingOrders,
+        totalVendors
       }
     });
   } catch (error) {
