@@ -39,6 +39,11 @@ exports.getVendors = async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('Create vendor error:', error);
+    // Handle Mongo duplicate key error
+    if (error.code === 11000) {
+      return res.status(400).json({ success: false, message: 'Vendor with this name or ID already exists' });
+    }
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -101,10 +106,14 @@ exports.createVendor = async (req, res) => {
       });
     }
     
+    // Ensure shippingItems is one of the allowed enum values; otherwise default to empty string
+    const allowedShippingItems = ['SUPPORTING', 'SUPPLIES', 'CONTRACTS', 'SOFTWARE', 'INVENTORY', 'MANUFACTURING', ''];
+    const normalizedShippingItems = allowedShippingItems.includes(shippingItems) ? shippingItems : '';
+
     const newVendor = await Vendor.create({
       name,
       vendorId,
-      shippingItems,
+      shippingItems: normalizedShippingItems,
       totalOrders: totalOrders || 0,
       onTimePercentage: onTimePercentage || 100,
       rating: rating || 0,
@@ -112,20 +121,22 @@ exports.createVendor = async (req, res) => {
       createdBy: req.user.id,
       updatedBy: req.user.id
     });
-    
-    res.status(201).json({
-      success: true,
-      message: 'Vendor created successfully',
-      vendor: newVendor
-    });
 
-    await logAudit({
+    // Fire-and-forget audit log so failures don't cause a duplicate response error
+    logAudit({
       user: req.user,
       action: 'CREATE',
       module: 'Vendors',
       resource: `Vendor ${newVendor.name}`,
       status: 'SUCCESS',
-      details: { vendorId: newVendor._id, name: newVendor.name }
+      details: { vendorId: newVendor._id, name: newVendor.name },
+      req
+    }).catch((err) => console.error('Audit log error:', err));
+
+    res.status(201).json({
+      success: true,
+      message: 'Vendor created successfully',
+      vendor: newVendor
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -154,7 +165,10 @@ exports.updateVendor = async (req, res) => {
     // Update fields
     if (name) vendor.name = name;
     if (vendorId) vendor.vendorId = vendorId;
-    if (shippingItems !== undefined) vendor.shippingItems = shippingItems;
+    if (shippingItems !== undefined) {
+      const allowedShippingItems = ['SUPPORTING', 'SUPPLIES', 'CONTRACTS', 'SOFTWARE', 'INVENTORY', 'MANUFACTURING', ''];
+      vendor.shippingItems = allowedShippingItems.includes(shippingItems) ? shippingItems : '';
+    }
     if (totalOrders !== undefined) vendor.totalOrders = totalOrders;
     if (onTimePercentage !== undefined) vendor.onTimePercentage = onTimePercentage;
     if (rating !== undefined) vendor.rating = rating;

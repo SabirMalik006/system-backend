@@ -107,16 +107,34 @@ exports.createStockInTransaction = async (req, res) => {
       notes 
     } = req.body;
 
-    // Find the item
-    const item = await Item.findById(itemId).session(session);
+    // Find the item. Accept either ObjectId or human-readable label like "Name (SKU)" or SKU.
+    let item = null;
+    if (mongoose.Types.ObjectId.isValid(itemId)) {
+      item = await Item.findById(itemId).session(session);
+    } else if (typeof itemId === 'string') {
+      // Try to extract SKU if format is "Name (SKU)" or similar
+      const skuMatch = /\(([^)]+)\)\s*$/.exec(itemId);
+      const possibleSku = skuMatch ? skuMatch[1].trim() : null;
+
+      if (possibleSku) {
+        item = await Item.findOne({ sku: possibleSku }).session(session);
+      }
+
+      // Fallback: try matching by SKU directly or by name
+      if (!item) {
+        item = await Item.findOne({ $or: [{ sku: itemId }, { name: itemId }] }).session(session);
+      }
+    }
+
     if (!item) {
       await session.abortTransaction();
       session.endSession();
-      return res.status(404).json({ success: false, message: 'Item not found' });
+      return res.status(404).json({ success: false, message: `Item not found for identifier: ${itemId}` });
     }
 
-    const previousStock = item.currentStock;
-    const newStock = previousStock + quantity;
+    const qty = Number(quantity) || 0;
+    const previousStock = Number(item.currentStock) || 0;
+    const newStock = previousStock + qty;
 
     // Create transaction
     const transaction = await Transaction.create([{
@@ -124,10 +142,10 @@ exports.createStockInTransaction = async (req, res) => {
       itemName: item.name,
       sku: item.sku,
       type: 'IN',
-      quantity,
+      quantity: qty,
       previousStock,
       newStock,
-      unitPrice: unitPrice || item.unitPrice,
+      unitPrice: Number(unitPrice) || item.unitPrice,
       reference: reference || 'purchase_order',
       referenceId: referenceId || `PO-${Date.now()}`,
       issuedTo: issuedTo || item.vendorName,
@@ -140,13 +158,16 @@ exports.createStockInTransaction = async (req, res) => {
 
     // Update item stock
     item.currentStock = newStock;
+    item.lastStockInDate = new Date();
     await item.save({ session });
 
     // Update vendor total orders if vendor exists
     if (item.vendorId) {
+      const incQty = qty || 0;
+      const incSpent = (Number(unitPrice) || item.unitPrice) * incQty;
       await Vendor.findByIdAndUpdate(
         item.vendorId,
-        { $inc: { totalOrders: 1, totalSpent: quantity * unitPrice } },
+        { $inc: { totalOrders: 1, totalSpent: incSpent } },
         { session }
       );
     }
@@ -158,6 +179,7 @@ exports.createStockInTransaction = async (req, res) => {
       success: true,
       message: 'Stock In recorded successfully',
       transaction: transaction[0],
+      item: { id: item._id, sku: item.sku, name: item.name },
       newStock: item.currentStock
     });
 

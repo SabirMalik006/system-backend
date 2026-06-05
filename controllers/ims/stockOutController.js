@@ -495,33 +495,51 @@ exports.createStockOut = async (req, res) => {
       priority = 'normal'
     } = req.body;
     
-    // Validate item
-    const item = await Item.findById(itemId).session(session);
+    // Find the item. Accept either ObjectId or human-readable label like "Name (SKU)" or SKU.
+    let item = null;
+    if (mongoose.Types.ObjectId.isValid(itemId)) {
+      item = await Item.findById(itemId).session(session);
+    } else if (typeof itemId === 'string') {
+      // Try to extract SKU if format is "Name (SKU)" or similar
+      const skuMatch = /\(([^)]+)\)\s*$/.exec(itemId);
+      const possibleSku = skuMatch ? skuMatch[1].trim() : null;
+
+      if (possibleSku) {
+        item = await Item.findOne({ sku: possibleSku }).session(session);
+      }
+
+      // Fallback: try matching by SKU directly or by name
+      if (!item) {
+        item = await Item.findOne({ $or: [{ sku: itemId }, { name: itemId }] }).session(session);
+      }
+    }
+
     if (!item) {
       await session.abortTransaction();
       session.endSession();
-      return res.status(404).json({ success: false, message: 'Item not found' });
+      return res.status(404).json({ success: false, message: `Item not found for identifier: ${itemId}` });
     }
     
+    const qty = Number(quantity) || 0;
     // Check stock availability
-    if (item.currentStock < quantity) {
+    if (item.currentStock < qty) {
       await session.abortTransaction();
       session.endSession();
       return res.status(400).json({
         success: false,
-        message: `Insufficient stock! Available: ${item.currentStock}, Requested: ${quantity}`,
+        message: `Insufficient stock! Available: ${item.currentStock}, Requested: ${qty}`,
         availableStock: item.currentStock
       });
     }
     
     const previousStock = item.currentStock;
-    const newStock = previousStock - quantity;
+    const newStock = previousStock - qty;
     
     // Determine approval status based on quantity or item settings
     let approvalStatus = 'approved';
     let status = 'APPROVED';
     
-    if (item.needsApproval || quantity > 50) {
+    if (item.needsApproval || qty > 50) {
       approvalStatus = 'pending_approval';
       status = 'PENDING';
     }
@@ -532,7 +550,7 @@ exports.createStockOut = async (req, res) => {
       itemName: item.name,
       sku: item.sku,
       type: 'OUT',
-      quantity,
+      quantity: qty,
       previousStock,
       newStock,
       unitPrice: item.unitPrice,
@@ -560,6 +578,7 @@ exports.createStockOut = async (req, res) => {
       success: true,
       message: status === 'PENDING' ? 'Stock out request created and pending approval' : 'Stock issued successfully',
       transaction: transaction[0],
+      item: { id: item._id, sku: item.sku, name: item.name },
       newStock: item.currentStock,
       needsApproval: status === 'PENDING'
     });
@@ -570,13 +589,15 @@ exports.createStockOut = async (req, res) => {
       module: status === 'PENDING' ? 'Approvals' : 'Inventory',
       resource: `Stock Out Request for ${item.sku}`,
       status: 'SUCCESS',
-      details: { transactionId: transaction[0]._id, quantity, approvalStatus: status }
+      details: { transactionId: transaction[0]._id, quantity: qty, approvalStatus: status }
     });
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
+    console.error('Create stock out error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
+
 };
 
 // @desc    Approve a pending stock out
@@ -704,34 +725,40 @@ exports.rejectStockOut = async (req, res) => {
 // @route   GET /api/stockout/summary
 exports.getIssuanceSummary = async (req, res) => {
   try {
-    const currentDate = new Date();
-    const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    
-    const [totalIssued, totalValue, uniqueRequesters, topItems] = await Promise.all([
-      Transaction.aggregate([
-        { $match: { type: 'OUT', status: 'APPROVED', transactionDate: { $gte: startOfMonth } } },
-        { $group: { _id: null, total: { $sum: '$quantity' } } }
-      ]),
-      Transaction.aggregate([
-        { $match: { type: 'OUT', status: 'APPROVED', transactionDate: { $gte: startOfMonth } } },
-        { $group: { _id: null, total: { $sum: { $multiply: ['$quantity', '$unitPrice'] } } } }
-      ]),
-      Transaction.distinct('userId', { type: 'OUT', transactionDate: { $gte: startOfMonth } }),
-      Transaction.aggregate([
-        { $match: { type: 'OUT', status: 'APPROVED', transactionDate: { $gte: startOfMonth } } },
-        { $group: { _id: '$itemName', total: { $sum: '$quantity' } } },
-        { $sort: { total: -1 } },
-        { $limit: 5 }
-      ])
+    const [
+      totalIssuances,
+      pendingApprovals,
+      completedIssuances,
+      lowStockItems
+    ] = await Promise.all([
+      // Total issuances (all OUT type)
+      Transaction.countDocuments({ type: 'OUT' }),
+      
+      // Pending approvals (OUT type with PENDING or DRAFT status)
+      Transaction.countDocuments({ 
+        type: 'OUT', 
+        status: { $in: ['PENDING', 'DRAFT'] } 
+      }),
+      
+      // Completed issuances (OUT type with COMPLETED status)
+      Transaction.countDocuments({ 
+        type: 'OUT', 
+        status: 'COMPLETED' 
+      }),
+      
+      // Low stock items count
+      Item.countDocuments({ 
+        $expr: { $lt: ['$currentStock', { $ifNull: ['$threshold', 50] }] }
+      })
     ]);
     
     res.json({
       success: true,
       summary: {
-        totalIssued: totalIssued[0]?.total || 0,
-        totalValue: totalValue[0]?.total || 0,
-        uniqueRequesters: uniqueRequesters.length,
-        topItems: topItems.map(t => ({ name: t._id, quantity: t.total }))
+        totalIssuances,
+        pendingApprovals,
+        completedIssuances,
+        lowStockCount: lowStockItems
       }
     });
   } catch (error) {
