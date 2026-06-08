@@ -267,9 +267,12 @@ stockReturnSchema.statics.getMonthlyTrend = async function(year = 2025) {
 
 // Static method to get reason and condition data
 stockReturnSchema.statics.getReasonConditionData = async function() {
-  const reasonData = await this.aggregate([
-    { $group: { _id: '$reason', count: { $sum: 1 } } },
-    { $sort: { count: -1 } }
+  const [reasonData, totalCount] = await Promise.all([
+    this.aggregate([
+      { $group: { _id: '$reason', count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]),
+    this.countDocuments()
   ]);
   
   const reasonColors = {
@@ -315,7 +318,7 @@ stockReturnSchema.statics.getReasonConditionData = async function() {
     Consumables: c.Consumables || 0
   }));
   
-  return { reasonData: formattedReasonData, conditionData: formattedConditionData };
+  return { reasonData: formattedReasonData, conditionData: formattedConditionData, totalReturns: totalCount };
 };
 
 module.exports = mongoose.model('StockReturn', stockReturnSchema);

@@ -54,7 +54,16 @@ router.put('/:id',
   stockReturnController.updateReturnStatus
 );
 
+// ==================== SINGLE RETURN ROUTE ====================
+router.get('/:id',
+  checkPermission('ims_stock_return', 'read'),
+  stockReturnController.getReturnById
+);
+
 // ==================== DELETE ROUTES (Super Admin only) ====================
-// router.delete('/:id', checkPermission('ims_stock_return', 'delete'), stockReturnController.deleteReturn);
+router.delete('/:id',
+  checkPermission('ims_stock_return', 'delete'),
+  stockReturnController.deleteReturn
+);
 
 module.exports = router;

@@ -214,6 +214,7 @@ exports.getReturnsTransactions = async (req, res) => {
     };
     
     const formattedReturns = returns.map(r => ({
+      _id: r._id,
       id: r.returnId,
       date: r.createdAt.toLocaleString('en-US', { 
         year: 'numeric', month: '2-digit', day: '2-digit',
@@ -298,8 +299,14 @@ exports.createStockReturn = async (req, res) => {
     // Calculate processing hours (will be updated when completed)
     const processingHours = 0;
     
+    // Generate return ID
+    const year = new Date().getFullYear();
+    const count = await StockReturn.countDocuments();
+    const returnId = `IMS-RTN-${year}-${(count + 5092).toString().padStart(4, '0')}`;
+    
     // Create return record
-    const stockReturn = await StockReturn.create([{
+    const stockReturn = new StockReturn({
+      returnId,
       itemId: item._id,
       itemName: item.name,
       sku: item.sku,
@@ -319,7 +326,8 @@ exports.createStockReturn = async (req, res) => {
       notes,
       createdBy: req.user.id,
       originalTransactionId
-    }], { session });
+    });
+    await stockReturn.save({ session });
     
     // Update item stock if restocking
     if (restockQuantity > 0) {
@@ -339,7 +347,7 @@ exports.createStockReturn = async (req, res) => {
         newStock: item.currentStock,
         unitPrice: item.unitPrice,
         reference: 'return',
-        referenceId: stockReturn[0].returnId,
+        referenceId: stockReturn.returnId,
         notes: `Return restock from ${returningStaff} - ${reason}`,
         userId: req.user.id,
         userName: req.user.name,
@@ -354,7 +362,7 @@ exports.createStockReturn = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Stock return created successfully',
-      return: stockReturn[0],
+      return: stockReturn,
       restockQuantity,
       discardQuantity,
       status
@@ -364,9 +372,9 @@ exports.createStockReturn = async (req, res) => {
       user: req.user,
       action: 'CREATE',
       module: 'Returns',
-      resource: `Stock Return ${stockReturn[0].returnId}`,
+      resource: `Stock Return ${stockReturn.returnId}`,
       status: 'SUCCESS',
-      details: { returnId: stockReturn[0]._id, quantity }
+      details: { returnId: stockReturn._id, quantity }
     });
   } catch (error) {
     await session.abortTransaction();
@@ -398,7 +406,6 @@ exports.updateReturnStatus = async (req, res) => {
     stockReturn.updatedAt = new Date();
     
     if (status === 'COMPLETED') {
-      // Calculate processing hours
       const createdTime = new Date(stockReturn.createdAt);
       const completedTime = new Date();
       const hoursDiff = (completedTime - createdTime) / (1000 * 60 * 60);
@@ -406,14 +413,44 @@ exports.updateReturnStatus = async (req, res) => {
     }
     
     if (status === 'APPROVED' && restockQuantity) {
-      stockReturn.restockQuantity = restockQuantity;
-      stockReturn.discardQuantity = stockReturn.quantity - restockQuantity;
+      stockReturn.restockQuantity = parseInt(restockQuantity);
+      stockReturn.discardQuantity = stockReturn.quantity - stockReturn.restockQuantity;
       
-      // Update item stock
       const item = await Item.findById(stockReturn.itemId).session(session);
-      if (item && restockQuantity > 0) {
-        item.currentStock += restockQuantity;
+      if (item && stockReturn.restockQuantity > 0) {
+        const previousStock = item.currentStock;
+        item.currentStock += stockReturn.restockQuantity;
+        item.lastStockInDate = new Date();
         await item.save({ session });
+        
+        await Transaction.create([{
+          itemId: item._id,
+          itemName: item.name,
+          sku: item.sku,
+          type: 'RETURN',
+          quantity: stockReturn.restockQuantity,
+          previousStock,
+          newStock: item.currentStock,
+          unitPrice: item.unitPrice,
+          reference: 'return',
+          referenceId: stockReturn.returnId,
+          notes: `Return restock from ${stockReturn.returningStaff} - ${stockReturn.reason}`,
+          userId: req.user.id,
+          userName: req.user.name,
+          department: stockReturn.originUnit,
+          transactionDate: new Date()
+        }], { session });
+      }
+    }
+    
+    // Reverse stock if changing from APPROVED to REJECTED/QUARANTINED
+    if ((oldStatus === 'APPROVED' || oldStatus === 'RESTOCKED') && 
+        (status === 'REJECTED' || status === 'QUARANTINED')) {
+      const item = await Item.findById(stockReturn.itemId).session(session);
+      if (item && stockReturn.restockQuantity > 0) {
+        item.currentStock = Math.max(0, item.currentStock - stockReturn.restockQuantity);
+        await item.save({ session });
+        stockReturn.restockQuantity = 0;
       }
     }
     
@@ -498,6 +535,70 @@ exports.exportReturns = async (req, res) => {
     
     res.json({ success: true, data: returns });
   } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get single return by ID
+// @route   GET /api/returns/:id
+exports.getReturnById = async (req, res) => {
+  try {
+    const stockReturn = await StockReturn.findById(req.params.id)
+      .populate('createdBy', 'name email')
+      .populate('approvedBy', 'name email')
+      .populate('qualityCheckedBy', 'name email');
+
+    if (!stockReturn) {
+      return res.status(404).json({ success: false, message: 'Return not found' });
+    }
+
+    res.json({ success: true, data: stockReturn });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Delete stock return
+// @route   DELETE /api/returns/:id
+exports.deleteReturn = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const stockReturn = await StockReturn.findById(req.params.id).session(session);
+    if (!stockReturn) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ success: false, message: 'Return not found' });
+    }
+
+    // Reverse stock if items were restocked
+    if (stockReturn.restockQuantity > 0) {
+      const item = await Item.findById(stockReturn.itemId).session(session);
+      if (item) {
+        item.currentStock = Math.max(0, item.currentStock - stockReturn.restockQuantity);
+        await item.save({ session });
+      }
+    }
+
+    await StockReturn.findByIdAndDelete(req.params.id).session(session);
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.json({ success: true, message: 'Stock return deleted and stock reversed' });
+
+    await logAudit({
+      user: req.user,
+      action: 'DELETE',
+      module: 'Returns',
+      resource: `Stock Return ${stockReturn.returnId}`,
+      status: 'SUCCESS',
+      details: { returnId: stockReturn._id }
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
     res.status(500).json({ success: false, message: error.message });
   }
 };

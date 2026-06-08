@@ -24,13 +24,17 @@ exports.getItems = async (req, res) => {
     
     // Search filter
     if (search) {
-      query.$or = [
+      const searchConditions = [
         { name: { $regex: search, $options: 'i' } },
         { sku: { $regex: search, $options: 'i' } },
-        { _id: { $regex: search, $options: 'i' } },
         { description: { $regex: search, $options: 'i' } },
         { barcode: { $regex: search, $options: 'i' } }
       ];
+      // Only add _id search if the search term looks like a valid ObjectId
+      if (mongoose.Types.ObjectId.isValid(search)) {
+        searchConditions.push({ _id: search });
+      }
+      query.$or = searchConditions;
     }
     
     // Status filter
@@ -70,19 +74,19 @@ exports.getItems = async (req, res) => {
       
       return {
         id: item._id,
-        itemId: `TM-${item.sku || item._id.toString().slice(-6).toUpperCase()}`,
-        identifiers: item.sku || `SKU-${item._id.toString().slice(-4)}`,
+        itemId: `TM-${item.sku || (item._id ? item._id.toString().slice(-6).toUpperCase() : 'N/A')}`,
+        identifiers: item.sku || (item._id ? `SKU-${item._id.toString().slice(-4)}` : 'SKU-N/A'),
         barcode: item.barcode || '',
         name: item.name,
-        category: item.category,
-        unit: item.unit,
-        minStock: item.minimumStock,
-        currentStock: item.currentStock.toLocaleString(),
-        threshold: item.threshold,
-        price: `Rs ${item.unitPrice.toFixed(2)}`,
+        category: item.category || '',
+        unit: item.unit || 'units',
+        minStock: item.minimumStock || 0,
+        currentStock: (item.currentStock || 0).toLocaleString(),
+        threshold: item.threshold || 0,
+        price: `Rs ${(item.unitPrice || 0).toFixed(2)}`,
         status: displayStatus,
         statusColor,
-        originalStatus: item.status,
+        originalStatus: item.status || 'in_stock',
         vendorName: item.vendorName || 'N/A',
         isActive: item.isActive !== false
       };
