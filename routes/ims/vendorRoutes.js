@@ -17,6 +17,11 @@ router.get('/top',
   vendorController.getTopVendors
 );
 
+router.get('/stats/performance',
+  checkPermission('ims_items', 'read'),
+  vendorController.getPerformanceStats
+);
+
 router.get('/:id',
   checkPermission('ims_items', 'read'),
   vendorController.getVendorById

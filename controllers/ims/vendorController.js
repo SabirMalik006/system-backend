@@ -64,6 +64,48 @@ exports.getTopVendors = async (req, res) => {
   }
 };
 
+// @desc    Get vendor performance stats for charts
+// @route   GET /api/vendors/stats/performance
+exports.getPerformanceStats = async (req, res) => {
+  try {
+    const allVendors = await Vendor.find({ isActive: true });
+
+    // Rating distribution
+    let excellent = 0, good = 0, average = 0, poor = 0;
+    allVendors.forEach(v => {
+      if (v.rating >= 4) excellent++;
+      else if (v.rating >= 3) good++;
+      else if (v.rating >= 2) average++;
+      else poor++;
+    });
+    const total = allVendors.length || 1;
+    const ratingDistribution = [
+      { name: 'Excellent', value: Math.round((excellent / total) * 100), color: '#1E88E5', darkColor: '#1565C0' },
+      { name: 'Good',      value: Math.round((good / total) * 100),      color: '#1a3a8f', darkColor: '#0d2257' },
+      { name: 'Average',   value: Math.round((average / total) * 100),    color: '#455a8a', darkColor: '#2c3d6b' },
+      { name: 'Poor',      value: Math.round((poor / total) * 100),      color: '#EF5350', darkColor: '#b71c1c' },
+    ];
+
+    // On-time delivery vs total orders
+    const deliveryData = allVendors
+      .filter(v => v.totalOrders > 0)
+      .sort((a, b) => b.totalOrders - a.totalOrders)
+      .slice(0, 10)
+      .map(v => ({
+        vendor: v.name,
+        onTime: v.onTimePercentage || 0,
+        total: v.totalOrders,
+      }));
+
+    res.json({
+      success: true,
+      data: { ratingDistribution, deliveryData },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // @desc    Get single vendor
 // @route   GET /api/vendors/:id
 exports.getVendorById = async (req, res) => {

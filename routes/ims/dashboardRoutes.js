@@ -32,6 +32,21 @@ router.get('/stock-movement',
   dashboardController.getStockMovementBreakdown
 );
 
+router.get('/category-health',
+  checkPermission('dashboard', 'read'),
+  dashboardController.getCategoryHealth
+);
+
+router.get('/stock-availability',
+  checkPermission('dashboard', 'read'),
+  dashboardController.getStockAvailability
+);
+
+router.get('/vendor-trend',
+  checkPermission('dashboard', 'read'),
+  dashboardController.getVendorTrend
+);
+
 router.get('/all',
   checkPermission('dashboard', 'read'),
   dashboardController.getAllDashboardData
