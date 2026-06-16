@@ -169,3 +169,32 @@ exports.getTypeDist = async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 };
+
+// @desc    Export incidents as CSV
+// @route   GET /api/incidents/export
+exports.exportIncidents = async (req, res) => {
+  try {
+    const incidents = await Incident.find({}).sort({ createdAt: -1 });
+
+    const headers = ['Incident ID', 'Employee Name', 'Employee Role', 'Date', 'Incident Type', 'Severity', 'Description', 'Reporting Authority', 'Status'];
+    const rows = incidents.map(inc => [
+      inc.incidentId || '',
+      `"${(inc.employeeName || '').replace(/"/g, '""')}"`,
+      `"${(inc.employeeRole || '').replace(/"/g, '""')}"`,
+      inc.date || '',
+      inc.incidentType || '',
+      inc.severity || '',
+      `"${(inc.description || '').replace(/"/g, '""')}"`,
+      `"${(inc.reportingAuthority || '').replace(/"/g, '""')}"`,
+      inc.status || '',
+    ]);
+
+    const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename=incidents-${Date.now()}.csv`);
+    res.send(csvContent);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};

@@ -1,4 +1,5 @@
 const Employee = require('../../models/Employee');
+const User = require('../../models/User');
 
 // @desc    Create employee
 // @route   POST /api/employees
@@ -206,6 +207,74 @@ exports.getSkillDist = async (req, res) => {
       ...counts,
     }));
     res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+// @desc    Deactivate linked user account for an employee
+// @route   PUT /api/employees/:id/deactivate-account
+exports.deactivateUserAccount = async (req, res) => {
+  try {
+    const employee = await Employee.findById(req.params.id);
+    if (!employee) return res.status(404).json({ success: false, error: 'Employee not found' });
+
+    const user = await User.findOne({ employeeId: employee.employeeId });
+    if (!user) return res.status(404).json({ success: false, error: 'No linked user account found' });
+
+    user.isActive = false;
+    await user.save();
+
+    res.json({ success: true, message: 'User account deactivated successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+// @desc    Delete employee and optionally linked user account
+// @route   DELETE /api/employees/:id/with-account
+exports.deleteEmployeeWithAccount = async (req, res) => {
+  try {
+    const employee = await Employee.findById(req.params.id);
+    if (!employee) return res.status(404).json({ success: false, error: 'Employee not found' });
+
+    // Delete linked user account if exists
+    await User.findOneAndDelete({ employeeId: employee.employeeId });
+
+    // Delete the employee
+    await Employee.findByIdAndDelete(req.params.id);
+
+    res.json({ success: true, message: 'Employee and linked account deleted' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+// @desc    Export employees as CSV
+// @route   GET /api/employees/export
+exports.exportEmployees = async (req, res) => {
+  try {
+    const employees = await Employee.find({}).sort({ createdAt: -1 }).populate('department', 'name');
+
+    const headers = ['Employee ID', 'First Name', 'Last Name', 'Email', 'Department', 'Designation', 'Employment Type', 'Status', 'Joining Date', 'Rating'];
+    const rows = employees.map(e => [
+      e.employeeId || '',
+      `"${(e.firstName || '').replace(/"/g, '""')}"`,
+      `"${(e.lastName || '').replace(/"/g, '""')}"`,
+      e.email || '',
+      e.department?.name || e.department || '',
+      e.designation || '',
+      e.employmentType || '',
+      e.employmentStatus || '',
+      e.joiningDate || '',
+      e.rating ?? '',
+    ]);
+
+    const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename=employees-${Date.now()}.csv`);
+    res.send(csvContent);
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

@@ -11,10 +11,12 @@ const {
   getMonthlyTrend,
   getSeverityDist,
   getTypeDist,
+  exportIncidents,
 } = require('../../controllers/ims/incidentController');
 
 router.use(protect);
 
+router.get('/export', checkPermission('hrm_employees', 'read'), exportIncidents);
 router.get('/stats/kpis', checkPermission('hrm_employees', 'read'), getKPIStats);
 router.get('/stats/monthly-trend', checkPermission('hrm_employees', 'read'), getMonthlyTrend);
 router.get('/stats/severity-dist', checkPermission('hrm_employees', 'read'), getSeverityDist);

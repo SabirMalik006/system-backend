@@ -49,6 +49,13 @@ app.use('/api/reports', require('./routes/ims/reportRoutes'));
 app.use('/api/purchase-requests', require('./routes/ims/purchaseRequestRoutes'));
 app.use('/api/employees', require('./routes/ims/employeeRoutes'));
 app.use('/api/incidents', require('./routes/ims/incidentRoutes'));
+app.use('/api/transfers', require('./routes/ims/transferRoutes'));
+app.use('/api/training', require('./routes/ims/trainingRoutes'));
+app.use('/api/attendance', require('./routes/ims/attendanceRoutes'));
+app.use('/api/leaves', require('./routes/ims/leaveRoutes'));
+app.use('/api/hrm-dashboard', require('./routes/hrmDashboardRoutes'));
+app.use('/api/toolkits', require('./routes/ims/toolKitRoutes'));
+app.use('/api/seed', require('./routes/seedRoutes'));
 
 // Health check
 app.get('/health', (req, res) => {
