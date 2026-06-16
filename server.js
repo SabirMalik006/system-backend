@@ -26,8 +26,24 @@ app.use('/api', limiter);
 // Middleware
 app.use(express.json());
 app.use(cookieParser());
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'https://system-two-lime.vercel.app'
+];
+
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:5173', 'https://system-two-lime.vercel.app'],
+  origin: function (origin, callback) {
+    if (!origin || process.env.NODE_ENV === 'production') {
+      callback(null, true);
+    } else {
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${origin} not allowed by CORS`));
+      }
+    }
+  },
   credentials: true
 }));
 app.use('/api', limiter);
