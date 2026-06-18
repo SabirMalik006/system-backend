@@ -65,8 +65,7 @@ const connectDB = async () => {
       connectTimeoutMS: 10000,
       socketTimeoutMS: 60000,
       maxPoolSize: 10,
-      minPoolSize: 1,
-      bufferCommands: false
+      minPoolSize: 1
     });
     console.log('✅ MongoDB Connected');
   } catch (err) {
@@ -74,7 +73,6 @@ const connectDB = async () => {
     if (process.env.NODE_ENV !== 'production') process.exit(1);
   }
 };
-connectDB();
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -105,6 +103,10 @@ app.get('/health', (req, res) => {
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+const start = async () => {
+  await connectDB();
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+  });
+};
+start();
