@@ -48,10 +48,33 @@ app.use(cors({
 }));
 app.use('/api', limiter);
 
-// Database connection
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('✅ MongoDB Connected'))
-  .catch(err => console.error('❌ MongoDB Error:', err));
+// Database connection (cached for Vercel serverless)
+let cachedClient = null;
+const connectDB = async () => {
+  if (cachedClient && mongoose.connection.readyState === 1) {
+    return mongoose.connection;
+  }
+  if (mongoose.connection.readyState === 1) {
+    cachedClient = mongoose.connection;
+    return cachedClient;
+  }
+  mongoose.connection.on('connected', () => { cachedClient = mongoose.connection; });
+  try {
+    await mongoose.connect(process.env.MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 10000,
+      socketTimeoutMS: 60000,
+      maxPoolSize: 10,
+      minPoolSize: 1,
+      bufferCommands: false
+    });
+    console.log('✅ MongoDB Connected');
+  } catch (err) {
+    console.error('❌ MongoDB Error:', err.message);
+    if (process.env.NODE_ENV !== 'production') process.exit(1);
+  }
+};
+connectDB();
 
 // Routes
 app.use('/api/auth', authRoutes);
