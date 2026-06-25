@@ -10,6 +10,7 @@ const stockInRoutes = require('./routes/ims/stockInRoutes');
 const stockOutRoutes = require('./routes/ims/stockOutRoutes');
 const stockReturnRoutes = require('./routes/ims/stockReturnRoutes');
 const itemRoutes = require('./routes/ims/itemRoutes');
+const seedDatabase = require('./utils/db');
 
 dotenv.config();
 
@@ -68,6 +69,7 @@ const connectDB = async () => {
       minPoolSize: 1
     });
     console.log('✅ MongoDB Connected');
+    await seedDatabase();
   } catch (err) {
     console.error('❌ MongoDB Error:', err.message);
     if (process.env.NODE_ENV !== 'production') process.exit(1);

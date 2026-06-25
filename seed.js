@@ -25,6 +25,16 @@ const rolesData = {
     permissions: [{ module: 'all', actions: ['manage'] }],
     description: 'Full system access with all permissions'
   },
+  cmes: {
+    level: 1,
+    permissions: [{ module: 'all', actions: ['manage'] }],
+    description: 'Full system access with all permissions'
+  },
+  ages_ges: {
+    level: 1,
+    permissions: [{ module: 'all', actions: ['manage'] }],
+    description: 'Full system access with all permissions'
+  },
   admin: {
     level: 2,
     permissions: [
@@ -85,6 +95,20 @@ const usersData = [
     email: 'superadmin@system.com',
     password: 'SuperAdmin@123',
     role: 'super_admin',
+    isActive: true
+  },
+  {
+    name: 'CMES User',
+    email: 'cmes@system.com',
+    password: 'Cmes@123',
+    role: 'cmes',
+    isActive: true
+  },
+  {
+    name: 'AGE\'S/GE\'S User',
+    email: 'agesges@system.com',
+    password: 'AgesGes@123',
+    role: 'ages_ges',
     isActive: true
   },
   {

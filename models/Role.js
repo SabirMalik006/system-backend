@@ -5,7 +5,7 @@ const roleSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
-    enum: ['super_admin', 'ims_manager', 'ims_viewer', 'hr_manager', 'hr_viewer', 'finance', 'employee']
+    enum: ['super_admin', 'admin', 'ims_manager', 'ims_viewer', 'hr_manager', 'hr_viewer', 'finance', 'employee', 'cmes', 'ages_ges', 'inventory_manager', 'viewer']
   },
   level: {
     type: Number,
@@ -26,7 +26,7 @@ const roleSchema = new mongoose.Schema({
     },
     actions: [{
       type: String,
-      enum: ['create', 'read', 'update', 'delete', 'manage', 'export', 'approve'],
+      enum: ['create', 'read', 'update', 'delete', 'manage', 'export', 'approve', 'read_own'],
       required: true
     }]
   }],
@@ -42,6 +42,56 @@ const roleSchema = new mongoose.Schema({
 const rolePermissionsMap = {
   // SUPER ADMIN - Full access to everything
   super_admin: {
+    level: 1,
+    module: 'both',
+    description: 'Complete system access - IMS + HRMS + Finance',
+    permissions: [
+      { module: 'ims_inventory', actions: ['create', 'read', 'update', 'delete', 'manage', 'export'] },
+      { module: 'ims_stock_in', actions: ['create', 'read', 'update', 'delete', 'export'] },
+      { module: 'ims_stock_out', actions: ['create', 'read', 'update', 'delete', 'export'] },
+      { module: 'ims_stock_return', actions: ['create', 'read', 'update', 'delete', 'export'] },
+      { module: 'ims_items', actions: ['create', 'read', 'update', 'delete', 'export'] },
+      { module: 'ims_vendors', actions: ['create', 'read', 'update', 'delete', 'export'] },
+      { module: 'ims_reports', actions: ['read', 'export'] },
+      { module: 'hrms_employees', actions: ['create', 'read', 'update', 'delete', 'manage', 'export'] },
+      { module: 'hrms_attendance', actions: ['create', 'read', 'update', 'delete', 'export'] },
+      { module: 'hrms_leave', actions: ['create', 'read', 'update', 'delete', 'approve'] },
+      { module: 'hrms_recruitment', actions: ['create', 'read', 'update', 'delete', 'approve'] },
+      { module: 'hrms_training', actions: ['create', 'read', 'update', 'delete'] },
+      { module: 'hrms_performance', actions: ['create', 'read', 'update', 'delete'] },
+      { module: 'hrms_payroll', actions: ['create', 'read', 'update', 'delete', 'approve'] },
+      { module: 'finance', actions: ['create', 'read', 'update', 'delete', 'approve', 'export'] },
+      { module: 'dashboard', actions: ['read'] }
+    ]
+  },
+
+  // CMES - Full access to everything (same as super admin)
+  cmes: {
+    level: 1,
+    module: 'both',
+    description: 'Complete system access - IMS + HRMS + Finance',
+    permissions: [
+      { module: 'ims_inventory', actions: ['create', 'read', 'update', 'delete', 'manage', 'export'] },
+      { module: 'ims_stock_in', actions: ['create', 'read', 'update', 'delete', 'export'] },
+      { module: 'ims_stock_out', actions: ['create', 'read', 'update', 'delete', 'export'] },
+      { module: 'ims_stock_return', actions: ['create', 'read', 'update', 'delete', 'export'] },
+      { module: 'ims_items', actions: ['create', 'read', 'update', 'delete', 'export'] },
+      { module: 'ims_vendors', actions: ['create', 'read', 'update', 'delete', 'export'] },
+      { module: 'ims_reports', actions: ['read', 'export'] },
+      { module: 'hrms_employees', actions: ['create', 'read', 'update', 'delete', 'manage', 'export'] },
+      { module: 'hrms_attendance', actions: ['create', 'read', 'update', 'delete', 'export'] },
+      { module: 'hrms_leave', actions: ['create', 'read', 'update', 'delete', 'approve'] },
+      { module: 'hrms_recruitment', actions: ['create', 'read', 'update', 'delete', 'approve'] },
+      { module: 'hrms_training', actions: ['create', 'read', 'update', 'delete'] },
+      { module: 'hrms_performance', actions: ['create', 'read', 'update', 'delete'] },
+      { module: 'hrms_payroll', actions: ['create', 'read', 'update', 'delete', 'approve'] },
+      { module: 'finance', actions: ['create', 'read', 'update', 'delete', 'approve', 'export'] },
+      { module: 'dashboard', actions: ['read'] }
+    ]
+  },
+
+  // AGE'S/GE'S - Full access to everything (same as super admin)
+  ages_ges: {
     level: 1,
     module: 'both',
     description: 'Complete system access - IMS + HRMS + Finance',
@@ -151,6 +201,47 @@ const rolePermissionsMap = {
     ]
   },
 
+  // ==================== ADMIN ROLE ====================
+  
+  admin: {
+    level: 2,
+    module: 'both',
+    description: 'Administrative access with user management',
+    permissions: [
+      { module: 'users', actions: ['create', 'read', 'update'] },
+      { module: 'ims_inventory', actions: ['create', 'read', 'update', 'delete'] },
+      { module: 'hrms', actions: ['create', 'read', 'update'] },
+      { module: 'ims_reports', actions: ['read', 'create'] },
+      { module: 'dashboard', actions: ['read'] }
+    ]
+  },
+
+  // ==================== INVENTORY MANAGER ROLE ====================
+  
+  inventory_manager: {
+    level: 3,
+    module: 'ims',
+    description: 'Complete inventory management',
+    permissions: [
+      { module: 'ims_inventory', actions: ['create', 'read', 'update'] },
+      { module: 'ims_reports', actions: ['read'] },
+      { module: 'dashboard', actions: ['read'] }
+    ]
+  },
+
+  // ==================== VIEWER ROLE ====================
+  
+  viewer: {
+    level: 5,
+    module: 'ims',
+    description: 'Read-only access to system',
+    permissions: [
+      { module: 'ims_inventory', actions: ['read'] },
+      { module: 'ims_reports', actions: ['read'] },
+      { module: 'dashboard', actions: ['read'] }
+    ]
+  },
+
   // ==================== EMPLOYEE ROLE ====================
   
   employee: {
@@ -176,7 +267,7 @@ roleSchema.statics.hasPermission = function(roleName, module, action) {
   const role = rolePermissionsMap[roleName];
   if (!role) return false;
   
-  if (roleName === 'super_admin') return true;
+  if (roleName === 'super_admin' || roleName === 'cmes' || roleName === 'ages_ges') return true;
   
   // IMS Manager cannot delete
   if (roleName === 'ims_manager' && action === 'delete') return false;
