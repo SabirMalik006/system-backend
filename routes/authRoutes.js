@@ -9,7 +9,7 @@ const registerValidation = [
   body('name').notEmpty().withMessage('Name is required'),
   body('email').isEmail().withMessage('Please provide valid email'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-  body('role').optional().isIn(['admin', 'inventory_manager', 'hr_manager', 'finance', 'viewer', 'employee'])
+  body('role').optional().isIn(['admin', 'dwece', 'inventory_manager', 'hr_manager', 'finance', 'viewer', 'employee'])
 ];
 
 const loginValidation = [
@@ -18,7 +18,7 @@ const loginValidation = [
 ];
 
 // Public routes
-router.post('/register', protect, authorize('super_admin', 'admin'), registerValidation, authController.register);
+router.post('/register', protect, authorize('super_admin', 'dwece', 'admin'), registerValidation, authController.register);
 router.post('/login', loginValidation, authController.login);
 router.post('/refresh', authController.refreshToken);
 router.post('/logout', authController.logout);
@@ -28,9 +28,9 @@ router.get('/me', protect, authController.getMe);
 router.put('/change-password', protect, authController.changePassword);
 
 // Admin only routes
-router.get('/users', protect, authorize('super_admin', 'admin'), authController.getUsers);
-router.put('/users/:id', protect, authorize('super_admin', 'admin'), authController.updateUser);
-router.delete('/users/:id', protect, authorize('super_admin'), authController.deleteUser);
+router.get('/users', protect, authorize('super_admin', 'dwece', 'admin'), authController.getUsers);
+router.put('/users/:id', protect, authorize('super_admin', 'dwece', 'admin'), authController.updateUser);
+router.delete('/users/:id', protect, authorize('super_admin', 'dwece'), authController.deleteUser);
 
 // Permission-based routes example
 router.get('/inventory', protect, checkPermission('inventory', 'read'), (req, res) => {

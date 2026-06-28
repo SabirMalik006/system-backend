@@ -2,7 +2,7 @@ const User = require('../models/User');
 const Role = require('../models/Role');
 
 const getAccessibleModulesByRole = (role) => {
-  if (role === 'super_admin' || role === 'cmes' || role === 'ages_ges') return ['ims', 'hrms', 'finance', 'dashboard'];
+  if (role === 'super_admin' || role === 'dwece' || role === 'cmes' || role === 'ages_ges') return ['ims', 'hrms', 'finance', 'dashboard'];
   if (role && role.startsWith('ims_')) return ['ims', 'dashboard'];
   if (role && role.startsWith('hr_')) return ['hrms', 'dashboard'];
   if (role === 'finance') return ['finance', 'dashboard'];
@@ -56,7 +56,7 @@ const ensureUser = async ({ name, email, password, role }) => {
 const seedDatabase = async () => {
   try {
     // Create roles if not exists
-    const roles = ['super_admin', 'cmes', 'ages_ges', 'ims_manager', 'ims_viewer', 'hr_manager', 'hr_viewer', 'finance'];
+    const roles = ['super_admin', 'dwece', 'cmes', 'ages_ges', 'ims_manager', 'ims_viewer', 'hr_manager', 'hr_viewer', 'finance'];
     
     for (const roleName of roles) {
       try {
@@ -68,12 +68,12 @@ const seedDatabase = async () => {
     }
     
     await ensureUser({
-      name: 'Super Admin',
-      email: 'superadmin@system.com',
-      password: 'SuperAdmin@123',
-      role: 'super_admin'
+      name: 'DWECE',
+      email: 'dwece@system.com',
+      password: 'Dwece@123',
+      role: 'dwece'
     });
-    console.log('✅ Demo user ready: superadmin@system.com / SuperAdmin@123');
+    console.log('✅ Demo user ready: dwece@system.com / Dwece@123');
 
     await ensureUser({
       name: 'IMS Viewer',

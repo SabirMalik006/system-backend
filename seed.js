@@ -25,6 +25,11 @@ const rolesData = {
     permissions: [{ module: 'all', actions: ['manage'] }],
     description: 'Full system access with all permissions'
   },
+  dwece: {
+    level: 1,
+    permissions: [{ module: 'all', actions: ['manage'] }],
+    description: 'Full system access with all permissions'
+  },
   cmes: {
     level: 1,
     permissions: [{ module: 'all', actions: ['manage'] }],
@@ -91,10 +96,10 @@ const rolesData = {
 // User Data with credentials
 const usersData = [
   {
-    name: 'Super Admin',
-    email: 'superadmin@system.com',
-    password: 'SuperAdmin@123',
-    role: 'super_admin',
+    name: 'DWECE',
+    email: 'dwece@system.com',
+    password: 'Dwece@123',
+    role: 'dwece',
     isActive: true
   },
   {

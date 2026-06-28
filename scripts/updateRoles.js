@@ -16,10 +16,10 @@ const updateRolesAndUsers = async () => {
     // Create new users with correct roles
     const users = await User.create([
       {
-        name: 'Super Admin',
-        email: 'superadmin@system.com',
-        password: 'Super@123',
-        role: 'super_admin',
+        name: 'DWECE',
+        email: 'dwece@system.com',
+        password: 'Dwece@123',
+        role: 'dwece',
         isActive: true
       },
       {
@@ -89,7 +89,7 @@ const updateRolesAndUsers = async () => {
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('| Role            | Email                          | Password      |');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('| Super Admin     | superadmin@system.com          | Super@123     |');
+    console.log('| DWECE           | dwece@system.com               | Dwece@123     |');
     console.log('| IMS Manager     | ims_manager@system.com         | Manager@123   |');
     console.log('| IMS Viewer      | ims_viewer@system.com          | Viewer@123    |');
     console.log('| HR Manager      | hr_manager@system.com          | HR@123        |');

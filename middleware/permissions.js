@@ -7,7 +7,7 @@ exports.canAccessModule = (moduleName) => {
       return res.status(401).json({ message: 'Not authenticated' });
     }
     
-    if (req.user.role === 'super_admin') {
+    if (req.user.role === 'super_admin' || req.user.role === 'dwece') {
       return next();
     }
     
@@ -30,8 +30,8 @@ exports.checkPermission = (module, action) => {
     try {
       const user = req.user;
       
-      // Super admin has all permissions
-      if (user.role === 'super_admin') {
+      // Super admin / DWECE has all permissions
+      if (user.role === 'super_admin' || user.role === 'dwece') {
         return next();
       }
       

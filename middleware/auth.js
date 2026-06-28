@@ -60,8 +60,8 @@ const authorize = (...roles) => {
 // Permission-based authorization (UPDATED for IMS + HRMS)
 const checkPermission = (module, action) => {
   return (req, res, next) => {
-    // Super admin has all permissions
-    if (req.user.role === 'super_admin') {
+    // Super admin / DWECE has all permissions
+    if (req.user.role === 'super_admin' || req.user.role === 'dwece') {
       return next();
     }
     
@@ -116,7 +116,7 @@ const checkPermission = (module, action) => {
 // Module access guard (NEW - for IMS/HRMS separation)
 const canAccessModule = (moduleName) => {
   return (req, res, next) => {
-    if (req.user.role === 'super_admin') {
+    if (req.user.role === 'super_admin' || req.user.role === 'dwece') {
       return next();
     }
     

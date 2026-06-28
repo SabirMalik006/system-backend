@@ -70,8 +70,8 @@ exports.register = async (req, res, next) => {
       return res.status(400).json({ message: 'User already exists' });
     }
     
-    // Only super_admin can create new users
-    if (req.user && req.user.role !== 'super_admin') {
+    // Only super_admin / dwece can create new users
+    if (req.user && req.user.role !== 'super_admin' && req.user.role !== 'dwece') {
       return res.status(403).json({ 
         message: 'Only Super Admin can create new users',
         yourRole: req.user.role 
@@ -79,7 +79,7 @@ exports.register = async (req, res, next) => {
     }
     
     // Validate role - only these roles can be created
-    const allowedRoles = ['ims_manager', 'ims_viewer', 'hr_manager', 'hr_viewer', 'finance', 'employee'];
+    const allowedRoles = ['ims_manager', 'ims_viewer', 'hr_manager', 'hr_viewer', 'finance', 'employee', 'dwece'];
     
     if (!role) {
       return res.status(400).json({ 
