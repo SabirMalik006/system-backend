@@ -36,7 +36,7 @@ exports.checkPermission = (module, action) => {
       }
       
       // Role-based restrictions
-      if (user.role === 'charge_head' && (action === 'update' || action === 'delete' || action === 'manage' || action === 'approve')) {
+      if (user.role === 'charge_head' && (action === 'update' || action === 'delete' || action === 'manage')) {
         return res.status(403).json({
           success: false,
           message: 'You are not allowed or authorize to do this',

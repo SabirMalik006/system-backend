@@ -42,7 +42,7 @@ const rolesData = {
       { module: 'ims_reports', actions: ['read'] },
       { module: 'hrms_employees', actions: ['create', 'read'] },
       { module: 'hrms_attendance', actions: ['create', 'read'] },
-      { module: 'hrms_leave', actions: ['create', 'read'] },
+      { module: 'hrms_leave', actions: ['create', 'read', 'approve'] },
       { module: 'hrms_training', actions: ['create', 'read'] },
       { module: 'hrms_performance', actions: ['create', 'read'] },
       { module: 'hrms_payroll', actions: ['read'] },
@@ -111,6 +111,15 @@ const rolesData = {
       { module: 'attendance', actions: ['create', 'read'] }
     ],
     description: 'Basic employee access'
+  },
+  tradesman: {
+    level: 4,
+    permissions: [
+      { module: 'hrms_attendance', actions: ['create', 'read', 'update', 'delete'] },
+      { module: 'hrms_leave', actions: ['create', 'read'] },
+      { module: 'dashboard', actions: ['read'] }
+    ],
+    description: 'Tradesman - can mark, edit and delete attendance, apply for leave'
   }
 };
 
@@ -185,6 +194,18 @@ const usersData = [
     password: 'Employee@123',
     role: 'employee',
     isActive: true
+  },
+  {
+    name: 'Tradesman',
+    email: 'tradesman@system.com',
+    password: 'Tradesman@123',
+    role: 'tradesman',
+    isActive: true,
+    employeeId: 'EMP-0142',
+    designation: 'Plumber',
+    department: 'Maintenance (Plumbing)',
+    phone: '+92-300-1234567',
+    joinDate: new Date('2024-01-15'),
   }
 ];
 
@@ -228,7 +249,12 @@ const seedDatabase = async () => {
         role: userData.role,
         permissions: rolePermissions,
         isActive: userData.isActive,
-        lastLogin: null
+        lastLogin: null,
+        employeeId: userData.employeeId,
+        designation: userData.designation,
+        department: userData.department,
+        phone: userData.phone,
+        joinDate: userData.joinDate,
       });
       
       await user.save();

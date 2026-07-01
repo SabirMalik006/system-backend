@@ -5,7 +5,7 @@ const roleSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
-    enum: ['super_admin', 'admin', 'dwece', 'charge_head', 'ims_manager', 'ims_viewer', 'hr_manager', 'hr_viewer', 'finance', 'employee', 'cmes', 'ages_ges', 'inventory_manager', 'viewer']
+    enum: ['super_admin', 'admin', 'dwece', 'charge_head', 'ims_manager', 'ims_viewer', 'hr_manager', 'hr_viewer', 'finance', 'employee', 'cmes', 'ages_ges', 'inventory_manager', 'viewer', 'tradesman']
   },
   level: {
     type: Number,
@@ -53,12 +53,12 @@ const rolePermissionsMap = {
       { module: 'ims_items', actions: ['create', 'read', 'update', 'delete', 'export'] },
       { module: 'ims_vendors', actions: ['create', 'read', 'update', 'delete', 'export'] },
       { module: 'ims_reports', actions: ['read', 'export'] },
-      { module: 'hrms_employees', actions: ['create', 'read', 'update', 'delete', 'manage', 'export'] },
+      { module: 'hrm_employees', actions: ['create', 'read', 'update', 'delete', 'manage', 'export'] },
       { module: 'hrms_attendance', actions: ['create', 'read', 'update', 'delete', 'export'] },
       { module: 'hrms_leave', actions: ['create', 'read', 'update', 'delete', 'approve'] },
-      { module: 'hrms_recruitment', actions: ['create', 'read', 'update', 'delete', 'approve'] },
-      { module: 'hrms_training', actions: ['create', 'read', 'update', 'delete'] },
-      { module: 'hrms_performance', actions: ['create', 'read', 'update', 'delete'] },
+      { module: 'hrm_recruitment', actions: ['create', 'read', 'update', 'delete', 'approve'] },
+      { module: 'hrm_training', actions: ['create', 'read', 'update', 'delete'] },
+      { module: 'hrm_performance', actions: ['create', 'read', 'update', 'delete'] },
       { module: 'hrms_payroll', actions: ['create', 'read', 'update', 'delete', 'approve'] },
       { module: 'finance', actions: ['create', 'read', 'update', 'delete', 'approve', 'export'] },
       { module: 'dashboard', actions: ['read'] }
@@ -78,12 +78,12 @@ const rolePermissionsMap = {
       { module: 'ims_items', actions: ['create', 'read', 'update', 'delete', 'export'] },
       { module: 'ims_vendors', actions: ['create', 'read', 'update', 'delete', 'export'] },
       { module: 'ims_reports', actions: ['read', 'export'] },
-      { module: 'hrms_employees', actions: ['create', 'read', 'update', 'delete', 'manage', 'export'] },
+      { module: 'hrm_employees', actions: ['create', 'read', 'update', 'delete', 'manage', 'export'] },
       { module: 'hrms_attendance', actions: ['create', 'read', 'update', 'delete', 'export'] },
       { module: 'hrms_leave', actions: ['create', 'read', 'update', 'delete', 'approve'] },
-      { module: 'hrms_recruitment', actions: ['create', 'read', 'update', 'delete', 'approve'] },
-      { module: 'hrms_training', actions: ['create', 'read', 'update', 'delete'] },
-      { module: 'hrms_performance', actions: ['create', 'read', 'update', 'delete'] },
+      { module: 'hrm_recruitment', actions: ['create', 'read', 'update', 'delete', 'approve'] },
+      { module: 'hrm_training', actions: ['create', 'read', 'update', 'delete'] },
+      { module: 'hrm_performance', actions: ['create', 'read', 'update', 'delete'] },
       { module: 'hrms_payroll', actions: ['create', 'read', 'update', 'delete', 'approve'] },
       { module: 'finance', actions: ['create', 'read', 'update', 'delete', 'approve', 'export'] },
       { module: 'dashboard', actions: ['read'] }
@@ -103,12 +103,12 @@ const rolePermissionsMap = {
       { module: 'ims_items', actions: ['create', 'read', 'update', 'delete', 'export'] },
       { module: 'ims_vendors', actions: ['create', 'read', 'update', 'delete', 'export'] },
       { module: 'ims_reports', actions: ['read', 'export'] },
-      { module: 'hrms_employees', actions: ['create', 'read', 'update', 'delete', 'manage', 'export'] },
+      { module: 'hrm_employees', actions: ['create', 'read', 'update', 'delete', 'manage', 'export'] },
       { module: 'hrms_attendance', actions: ['create', 'read', 'update', 'delete', 'export'] },
       { module: 'hrms_leave', actions: ['create', 'read', 'update', 'delete', 'approve'] },
-      { module: 'hrms_recruitment', actions: ['create', 'read', 'update', 'delete', 'approve'] },
-      { module: 'hrms_training', actions: ['create', 'read', 'update', 'delete'] },
-      { module: 'hrms_performance', actions: ['create', 'read', 'update', 'delete'] },
+      { module: 'hrm_recruitment', actions: ['create', 'read', 'update', 'delete', 'approve'] },
+      { module: 'hrm_training', actions: ['create', 'read', 'update', 'delete'] },
+      { module: 'hrm_performance', actions: ['create', 'read', 'update', 'delete'] },
       { module: 'hrms_payroll', actions: ['create', 'read', 'update', 'delete', 'approve'] },
       { module: 'finance', actions: ['create', 'read', 'update', 'delete', 'approve', 'export'] },
       { module: 'dashboard', actions: ['read'] }
@@ -128,12 +128,12 @@ const rolePermissionsMap = {
       { module: 'ims_items', actions: ['create', 'read', 'update', 'delete', 'export'] },
       { module: 'ims_vendors', actions: ['create', 'read', 'update', 'delete', 'export'] },
       { module: 'ims_reports', actions: ['read', 'export'] },
-      { module: 'hrms_employees', actions: ['create', 'read', 'update', 'delete', 'manage', 'export'] },
+      { module: 'hrm_employees', actions: ['create', 'read', 'update', 'delete', 'manage', 'export'] },
       { module: 'hrms_attendance', actions: ['create', 'read', 'update', 'delete', 'export'] },
       { module: 'hrms_leave', actions: ['create', 'read', 'update', 'delete', 'approve'] },
-      { module: 'hrms_recruitment', actions: ['create', 'read', 'update', 'delete', 'approve'] },
-      { module: 'hrms_training', actions: ['create', 'read', 'update', 'delete'] },
-      { module: 'hrms_performance', actions: ['create', 'read', 'update', 'delete'] },
+      { module: 'hrm_recruitment', actions: ['create', 'read', 'update', 'delete', 'approve'] },
+      { module: 'hrm_training', actions: ['create', 'read', 'update', 'delete'] },
+      { module: 'hrm_performance', actions: ['create', 'read', 'update', 'delete'] },
       { module: 'hrms_payroll', actions: ['create', 'read', 'update', 'delete', 'approve'] },
       { module: 'finance', actions: ['create', 'read', 'update', 'delete', 'approve', 'export'] },
       { module: 'dashboard', actions: ['read'] }
@@ -153,12 +153,12 @@ const rolePermissionsMap = {
       { module: 'ims_items', actions: ['create', 'read'] },
       { module: 'ims_vendors', actions: ['create', 'read'] },
       { module: 'ims_reports', actions: ['read'] },
-      { module: 'hrms_employees', actions: ['create', 'read'] },
+      { module: 'hrm_employees', actions: ['create', 'read'] },
       { module: 'hrms_attendance', actions: ['create', 'read'] },
-      { module: 'hrms_leave', actions: ['create', 'read'] },
-      { module: 'hrms_recruitment', actions: ['create', 'read'] },
-      { module: 'hrms_training', actions: ['create', 'read'] },
-      { module: 'hrms_performance', actions: ['create', 'read'] },
+      { module: 'hrms_leave', actions: ['create', 'read', 'approve'] },
+      { module: 'hrm_recruitment', actions: ['create', 'read'] },
+      { module: 'hrm_training', actions: ['create', 'read'] },
+      { module: 'hrm_performance', actions: ['create', 'read'] },
       { module: 'hrms_payroll', actions: ['read'] },
       { module: 'finance', actions: ['create', 'read'] },
       { module: 'dashboard', actions: ['read'] }
@@ -209,12 +209,12 @@ const rolePermissionsMap = {
     module: 'hrms',
     description: 'Complete HRMS access - can manage employees, attendance, leave',
     permissions: [
-      { module: 'hrms_employees', actions: ['create', 'read', 'update', 'export'] },
+      { module: 'hrm_employees', actions: ['create', 'read', 'update', 'export'] },
       { module: 'hrms_attendance', actions: ['create', 'read', 'update', 'export'] },
       { module: 'hrms_leave', actions: ['create', 'read', 'update', 'approve'] },
-      { module: 'hrms_recruitment', actions: ['create', 'read', 'update'] },
-      { module: 'hrms_training', actions: ['create', 'read', 'update'] },
-      { module: 'hrms_performance', actions: ['create', 'read', 'update'] },
+      { module: 'hrm_recruitment', actions: ['create', 'read', 'update'] },
+      { module: 'hrm_training', actions: ['create', 'read', 'update'] },
+      { module: 'hrm_performance', actions: ['create', 'read', 'update'] },
       { module: 'hrms_payroll', actions: ['read'] },
       { module: 'dashboard', actions: ['read'] }
     ]
@@ -226,12 +226,12 @@ const rolePermissionsMap = {
     module: 'hrms',
     description: 'Read-only access to HRMS',
     permissions: [
-      { module: 'hrms_employees', actions: ['read'] },
+      { module: 'hrm_employees', actions: ['read'] },
       { module: 'hrms_attendance', actions: ['read'] },
       { module: 'hrms_leave', actions: ['read'] },
-      { module: 'hrms_recruitment', actions: ['read'] },
-      { module: 'hrms_training', actions: ['read'] },
-      { module: 'hrms_performance', actions: ['read'] },
+      { module: 'hrm_recruitment', actions: ['read'] },
+      { module: 'hrm_training', actions: ['read'] },
+      { module: 'hrm_performance', actions: ['read'] },
       { module: 'dashboard', actions: ['read'] }
     ]
   },
@@ -299,9 +299,22 @@ const rolePermissionsMap = {
     module: 'hrms',
     description: 'Employee self-service - can view own profile, apply leave',
     permissions: [
-      { module: 'hrms_employees', actions: ['read_own'] },
+      { module: 'hrm_employees', actions: ['read_own'] },
       { module: 'hrms_attendance', actions: ['create', 'read_own'] },
       { module: 'hrms_leave', actions: ['create', 'read_own'] },
+      { module: 'dashboard', actions: ['read'] }
+    ]
+  },
+
+  // ==================== TRADESMAN ROLE ====================
+
+  tradesman: {
+    level: 4,
+    module: 'hrms',
+    description: 'Tradesman - can mark, edit and delete attendance, apply for leave',
+    permissions: [
+      { module: 'hrms_attendance', actions: ['create', 'read', 'update', 'delete'] },
+      { module: 'hrms_leave', actions: ['create', 'read'] },
       { module: 'dashboard', actions: ['read'] }
     ]
   }
@@ -319,8 +332,8 @@ roleSchema.statics.hasPermission = function(roleName, module, action) {
   
   if (roleName === 'super_admin' || roleName === 'dwece' || roleName === 'cmes' || roleName === 'ages_ges') return true;
   
-  // Charge Head cannot update or delete
-  if (roleName === 'charge_head' && (action === 'update' || action === 'delete' || action === 'manage' || action === 'approve')) return false;
+  // Charge Head cannot update or delete (but can approve leaves)
+  if (roleName === 'charge_head' && (action === 'update' || action === 'delete' || action === 'manage')) return false;
 
   // IMS Manager cannot delete
   if (roleName === 'ims_manager' && action === 'delete') return false;
@@ -330,6 +343,7 @@ roleSchema.statics.hasPermission = function(roleName, module, action) {
   
   // HR Viewer can only read
   if (roleName === 'hr_viewer' && action !== 'read') return false;
+  
   
   const modulePerm = role.permissions.find(p => p.module === module);
   if (!modulePerm) return false;

@@ -65,8 +65,8 @@ const checkPermission = (module, action) => {
       return next();
     }
     
-    // Charge Head cannot update or delete
-    if (req.user.role === 'charge_head' && (action === 'update' || action === 'delete' || action === 'manage' || action === 'approve')) {
+    // Charge Head cannot update or delete (but can approve leaves)
+    if (req.user.role === 'charge_head' && (action === 'update' || action === 'delete' || action === 'manage')) {
       return res.status(403).json({ 
         message: 'You are not allowed or authorize to do this',
         role: req.user.role,

@@ -48,7 +48,13 @@ const sendTokenResponse = async (user, statusCode, res, req) => {
       email: user.email,
       role: user.role,
       permissions: user.permissions,
-      accessibleModules: user.accessibleModules
+      accessibleModules: user.accessibleModules,
+      employeeId: user.employeeId,
+      designation: user.designation,
+      department: user.department,
+      phone: user.phone,
+      joinDate: user.joinDate,
+      profileImage: user.profileImage,
     }
   });
 };

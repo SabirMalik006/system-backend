@@ -10,31 +10,92 @@ exports.getDashboardStats = async (req, res) => {
     const now = new Date();
     const today = now.toISOString().split('T')[0];
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-
-    // ── Employee stats ──
-    const totalEmployees = await Employee.countDocuments();
-    const activeEmployees = await Employee.countDocuments({ employmentStatus: 'Active' });
-    const onLeaveEmployees = await Employee.countDocuments({ employmentStatus: 'On Leave' });
-    const incompleteProfiles = await Employee.countDocuments({ profilePhoto: { $in: ['', null] } });
-    const totalWorkforce = totalEmployees;
-    const activePct = totalEmployees > 0
-      ? Math.round((activeEmployees / totalEmployees) * 1000) / 10
-      : 0;
-
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const newInductees = await Employee.countDocuments({ createdAt: { $gte: thirtyDaysAgo } });
+    const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
 
-    // Department distribution
-    const employees = await Employee.find({}, 'department unit');
+    // ── Run independent queries in parallel ──
+    const [
+      totalEmployees,
+      activeEmployees,
+      onLeaveEmployees,
+      incompleteProfiles,
+      newInductees,
+      deptAggregation,
+      unitAggregation,
+      todayRecords,
+      monthlyAttendance,
+      totalLeaveRequests,
+      pendingLeaves,
+      approvedLeaves,
+      urgentLeaves,
+      deptLeaveAggregation,
+      totalTrainings,
+      upcomingTrainings,
+      ongoingTrainings,
+      completedTrainings,
+      trainingPrograms,
+      totalIncidents,
+      openIncidents,
+      criticalIncidents,
+      totalTransfers,
+      pendingTransfers,
+    ] = await Promise.all([
+      Employee.countDocuments(),
+      Employee.countDocuments({ employmentStatus: 'Active' }),
+      Employee.countDocuments({ employmentStatus: 'On Leave' }),
+      Employee.countDocuments({ profilePhoto: { $in: ['', null] } }),
+      Employee.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
+      Employee.aggregate([
+        { $match: { department: { $ne: null } } },
+        { $group: { _id: '$department', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+      ]),
+      Employee.aggregate([
+        { $match: { unit: { $ne: null } } },
+        { $group: { _id: '$unit', count: { $sum: 1 } } },
+      ]),
+      Attendance.find({ date: today }).lean(),
+      Attendance.aggregate([
+        { $match: { date: { $gte: twelveMonthsAgo.toISOString().split('T')[0] } } },
+        { $group: { _id: { $substr: ['$date', 0, 7] }, count: { $sum: 1 } } },
+        { $sort: { _id: 1 } },
+      ]),
+      Leave.countDocuments({ createdAt: { $gte: sixMonthsAgo } }),
+      Leave.countDocuments({ status: 'Pending' }),
+      Leave.countDocuments({ status: 'Approved', createdAt: { $gte: sixMonthsAgo } }),
+      Leave.countDocuments({ status: 'Pending', urgency: 'URGENT' }),
+      Leave.aggregate([
+        {
+          $group: {
+            _id: { $ifNull: ['$department', 'General'] },
+            requested: { $sum: 1 },
+            approved: { $sum: { $cond: [{ $eq: ['$status', 'Approved'] }, 1, 0] } },
+          },
+        },
+        { $sort: { requested: -1 } },
+        { $limit: 6 },
+      ]),
+      Training.countDocuments(),
+      Training.countDocuments({ status: 'Upcoming' }),
+      Training.countDocuments({ status: 'Ongoing' }),
+      Training.countDocuments({ status: 'Completed' }),
+      Training.find().sort({ createdAt: -1 }).limit(10).lean(),
+      Incident.countDocuments(),
+      Incident.countDocuments({ status: 'Open' }),
+      Incident.countDocuments({ severity: 'Final Warning', status: 'Open' }),
+      Transfer.countDocuments(),
+      Transfer.countDocuments({ status: 'Pending' }),
+    ]);
+
+    // ── Process department counts ──
     const deptCounts = {};
-    const unitCounts = {};
-    employees.forEach(e => {
-      if (e.department) deptCounts[e.department] = (deptCounts[e.department] || 0) + 1;
-      if (e.unit) unitCounts[e.unit] = (unitCounts[e.unit] || 0) + 1;
-    });
+    deptAggregation.forEach(d => { deptCounts[d._id] = d.count; });
 
-    // ── Attendance stats (today) ──
-    const todayRecords = await Attendance.find({ date: today });
+    // ── Process unit counts ──
+    const unitCounts = {};
+    unitAggregation.forEach(u => { unitCounts[u._id] = u.count; });
+
+    // ── Attendance stats ──
     const presentToday = todayRecords.filter(r => r.status === 'Present').length;
     const lateToday = todayRecords.filter(r => r.status === 'Late').length;
     const absentToday = todayRecords.filter(r => r.status === 'Absent').length;
@@ -43,71 +104,42 @@ exports.getDashboardStats = async (req, res) => {
       ? Math.round((presentToday / todayRecords.length) * 100)
       : 0;
 
-    // Monthly attendance trend (last 12 months)
+    // ── Monthly attendance trend ──
+    const monthlyMap = {};
+    monthlyAttendance.forEach(m => { monthlyMap[m._id] = m.count; });
     const trendData = [];
     for (let i = 11; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const monthRecords = await Attendance.countDocuments({ date: { $regex: `^${monthStr}` } });
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       trendData.push({
         month: d.toLocaleDateString('en-US', { month: 'short' }),
-        employees: monthRecords,
+        employees: monthlyMap[key] || 0,
       });
     }
 
-    // ── Leave stats ──
-    const totalLeaveRequests = await Leave.countDocuments({ createdAt: { $gte: sixMonthsAgo } });
-    const pendingLeaves = await Leave.countDocuments({ status: 'Pending' });
-    const approvedLeaves = await Leave.countDocuments({ status: 'Approved', createdAt: { $gte: sixMonthsAgo } });
-    const urgentLeaves = await Leave.countDocuments({ status: 'Pending', urgency: 'URGENT' });
-
-    // Leave vs approval by department
-    const allLeaves = await Leave.find();
-    const deptLeaveStats = {};
-    allLeaves.forEach(l => {
-      const dept = l.department || 'General';
-      if (!deptLeaveStats[dept]) deptLeaveStats[dept] = { requested: 0, approved: 0 };
-      deptLeaveStats[dept].requested++;
-      if (l.status === 'Approved') deptLeaveStats[dept].approved++;
-    });
-    const leaveVsApproval = Object.entries(deptLeaveStats).slice(0, 6).map(([dept, stats]) => ({
-      dept: dept.length > 5 ? dept.slice(0, 5) : dept,
-      requested: stats.requested,
-      approved: stats.approved,
+    // ── Leave vs approval ──
+    const leaveVsApproval = deptLeaveAggregation.map(d => ({
+      dept: d._id.length > 5 ? d._id.slice(0, 5) : d._id,
+      requested: d.requested,
+      approved: d.approved,
     }));
 
-    // ── Training stats ──
-    const totalTrainings = await Training.countDocuments();
-    const upcomingTrainings = await Training.countDocuments({ status: 'Upcoming' });
-    const ongoingTrainings = await Training.countDocuments({ status: 'Ongoing' });
-    const completedTrainings = await Training.countDocuments({ status: 'Completed' });
-    const trainingPrograms = await Training.find().sort({ createdAt: -1 }).limit(10);
-    const trainingParticipationPct = totalEmployees > 0
-      ? Math.round((totalTrainings > 0 ? 92 : 0) * 10) / 10
+    // ── KPI cards ──
+    const totalWorkforce = totalEmployees;
+    const activePct = totalEmployees > 0
+      ? Math.round((activeEmployees / totalEmployees) * 1000) / 10
       : 0;
-
-    // ── Incident stats ──
-    const totalIncidents = await Incident.countDocuments();
-    const openIncidents = await Incident.countDocuments({ status: 'Open' });
-    const criticalIncidents = await Incident.countDocuments({ severity: 'Final Warning', status: 'Open' });
-    const disciplinaryCases = totalIncidents;
-
-    // ── Transfer stats ──
-    const totalTransfers = await Transfer.countDocuments();
-    const pendingTransfers = await Transfer.countDocuments({ status: 'Pending' });
-
-    // ██ Build KPI cards data ██
     const kpis = {
       totalEmployees,
       activeEmployees,
       activePct,
-      trainingParticipationPct,
-      disciplinaryCases,
+      trainingParticipationPct: totalEmployees > 0 ? Math.round((totalTrainings > 0 ? 92 : 0) * 10) / 10 : 0,
+      disciplinaryCases: totalIncidents,
       criticalCount: criticalIncidents,
       urgentLeaves,
     };
 
-    // ██ System alerts ██
+    // ── System alerts ──
     const systemAlerts = {
       lateComers: lateToday,
       hazardsCount: openIncidents,
@@ -119,7 +151,7 @@ exports.getDashboardStats = async (req, res) => {
       archivedAlerts: completedTrainings,
     };
 
-    // ██ Duty status ██
+    // ── Duty status ──
     const fitForDuty = activePct;
     const medicalLeavePct = totalWorkforce > 0
       ? Math.round((onLeaveEmployees / totalWorkforce) * 1000) / 10
@@ -148,7 +180,7 @@ exports.getDashboardStats = async (req, res) => {
       attendanceRate,
     };
 
-    // ██ MES Personnel distribution ██
+    // ── MES Personnel ──
     const mesUnits = ['CMES COMCOAST', 'CMES COMKAR', 'CMES COMLOG', 'CME COMPAK', 'CME ISLD / LHR', 'CMES ORMARA'];
     const mesPersonnel = {
       personnel: mesUnits.map(unit => {
@@ -160,7 +192,7 @@ exports.getDashboardStats = async (req, res) => {
       total: mesUnits.reduce((sum, u) => sum + (unitCounts[u] || 0), 0),
     };
 
-    // ██ Workforce metrics ██
+    // ── Workforce metrics ──
     const workforceMetrics = {
       chartData: Object.entries(deptCounts).slice(0, 7).map(([dept, total]) => ({
         dept,
@@ -176,7 +208,7 @@ exports.getDashboardStats = async (req, res) => {
       ],
     };
 
-    // ██ Skill proficiency ██
+    // ── Skill proficiency ──
     const skillProficiency = { chartData: [] };
     if (trainingPrograms.length > 0) {
       skillProficiency.chartData = trainingPrograms.slice(0, 7).map(t => ({
@@ -186,15 +218,11 @@ exports.getDashboardStats = async (req, res) => {
       }));
     }
 
-    // ██ Leave vs approval chart ██
-    const leaveChartData = leaveVsApproval.length > 0 ? leaveVsApproval : [];
-
-    // ██ Shortages ██
+    // ── Shortages / updates ──
     const shortages = [];
     const attendanceUpdatesList = [];
     const fieldPerformanceList = [];
 
-    // Build shortages from transfers / leaves
     if (pendingTransfers > 0) {
       shortages.push({ area: 'Pending Transfers', current: 0, required: pendingTransfers, urgent: pendingTransfers > 5 });
     }
@@ -213,7 +241,7 @@ exports.getDashboardStats = async (req, res) => {
         mesPersonnel,
         workforceMetrics,
         skillProficiency,
-        leaveVsApproval: leaveChartData,
+        leaveVsApproval,
         shortages,
         attendanceUpdates: attendanceUpdatesList,
         fieldPerformance: fieldPerformanceList,

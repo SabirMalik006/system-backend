@@ -8,18 +8,17 @@ const {
 
 // Stats & export routes must come before /:id
 router.use(protect);
-router.use(checkPermission('hrm_employees', 'read'));
 
-router.get('/stats/kpis', getKPIs);
-router.get('/stats/by-department', getByDepartment);
-router.get('/stats/condition-summary', getConditionSummary);
-router.get('/stats/recent-activity', getRecentActivity);
-router.get('/export', exportCSV);
+router.get('/stats/kpis', checkPermission('hrm_employees', 'read'), getKPIs);
+router.get('/stats/by-department', checkPermission('hrm_employees', 'read'), getByDepartment);
+router.get('/stats/condition-summary', checkPermission('hrm_employees', 'read'), getConditionSummary);
+router.get('/stats/recent-activity', checkPermission('hrm_employees', 'read'), getRecentActivity);
+router.get('/export', checkPermission('hrm_employees', 'read'), exportCSV);
 
-router.get('/', getAll);
-router.get('/:id', getById);
-router.post('/', create);
-router.put('/:id', update);
-router.delete('/:id', deleteKit);
+router.get('/', checkPermission('hrm_employees', 'read'), getAll);
+router.get('/:id', checkPermission('hrm_employees', 'read'), getById);
+router.post('/', checkPermission('hrm_employees', 'create'), create);
+router.put('/:id', checkPermission('hrm_employees', 'update'), update);
+router.delete('/:id', checkPermission('hrm_employees', 'delete'), deleteKit);
 
 module.exports = router;

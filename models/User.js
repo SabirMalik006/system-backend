@@ -22,7 +22,7 @@ const userSchema = new mongoose.Schema({
   role: {
     type: String,
     // UPDATE THIS ENUM - New roles for IMS + HRMS
-    enum: ['super_admin', 'dwece', 'charge_head', 'ims_manager', 'ims_viewer', 'hr_manager', 'hr_viewer', 'finance', 'employee', 'cmes', 'ages_ges'],
+    enum: ['super_admin', 'dwece', 'charge_head', 'ims_manager', 'ims_viewer', 'hr_manager', 'hr_viewer', 'finance', 'employee', 'cmes', 'ages_ges', 'tradesman'],
     default: 'employee'
   },
   // Which modules this user can access
@@ -92,7 +92,7 @@ userSchema.pre('save', async function(next) {
       this.accessibleModules = ['hrms', 'dashboard'];
     } else if (this.role === 'finance') {
       this.accessibleModules = ['finance', 'dashboard'];
-    } else if (this.role === 'employee') {
+    } else if (this.role === 'employee' || this.role === 'tradesman') {
       this.accessibleModules = ['hrms', 'dashboard'];
     } else {
       this.accessibleModules = ['dashboard'];

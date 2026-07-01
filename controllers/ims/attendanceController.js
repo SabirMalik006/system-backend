@@ -18,10 +18,7 @@ exports.getAllAttendance = async (req, res) => {
     if (shift && shift !== 'All') filter.shift = shift;
     if (department && department !== 'All') filter.department = department;
     if (date) filter.date = date;
-    if (!date) {
-      const today = new Date().toISOString().split('T')[0];
-      filter.date = today;
-    }
+    // No default date filter — show all records
     if (search) {
       filter.$or = [
         { employeeName: { $regex: search, $options: 'i' } },
@@ -261,8 +258,7 @@ exports.getHeatmap = async (req, res) => {
 
 exports.getRecentActivity = async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
-    const records = await Attendance.find({ date: today }).sort({ createdAt: -1 }).limit(10);
+    const records = await Attendance.find().sort({ createdAt: -1 }).limit(10);
     const activities = records.map(r => {
       const clockInTime = r.clockIn || '--';
       const statusText = r.status === 'Late' ? ` (${r.status})` : r.status === 'Present' ? '' : ` · ${r.status}`;
@@ -337,8 +333,7 @@ exports.getWorkingHoursAnalysis = async (req, res) => {
 
 exports.getPendingApprovals = async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
-    const lateRecords = await Attendance.find({ date: today, status: 'Late' }).limit(5);
+    const lateRecords = await Attendance.find({ status: 'Late' }).sort({ date: -1 }).limit(5);
     const approvals = lateRecords.map(r => {
       const initials = r.employeeName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
       let lateMin = '';
@@ -351,7 +346,7 @@ exports.getPendingApprovals = async (req, res) => {
       return {
         initials,
         name: r.employeeName,
-        meta: `Late Mark · ${today} · ${lateMin} · ${r.designation}`,
+        meta: `Late Mark · ${r.date} · ${lateMin} · ${r.designation}`,
       };
     });
     res.json({ success: true, data: approvals });
