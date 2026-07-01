@@ -5,7 +5,7 @@ const roleSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
-    enum: ['super_admin', 'admin', 'dwece', 'ims_manager', 'ims_viewer', 'hr_manager', 'hr_viewer', 'finance', 'employee', 'cmes', 'ages_ges', 'inventory_manager', 'viewer']
+    enum: ['super_admin', 'admin', 'dwece', 'charge_head', 'ims_manager', 'ims_viewer', 'hr_manager', 'hr_viewer', 'finance', 'employee', 'cmes', 'ages_ges', 'inventory_manager', 'viewer']
   },
   level: {
     type: Number,
@@ -136,6 +136,31 @@ const rolePermissionsMap = {
       { module: 'hrms_performance', actions: ['create', 'read', 'update', 'delete'] },
       { module: 'hrms_payroll', actions: ['create', 'read', 'update', 'delete', 'approve'] },
       { module: 'finance', actions: ['create', 'read', 'update', 'delete', 'approve', 'export'] },
+      { module: 'dashboard', actions: ['read'] }
+    ]
+  },
+
+  // CHARGE HEAD - Data entry access across all modules (create + read only)
+  charge_head: {
+    level: 3,
+    module: 'both',
+    description: 'Data entry access - can create and read across IMS + HRMS but NO update/delete',
+    permissions: [
+      { module: 'ims_inventory', actions: ['create', 'read'] },
+      { module: 'ims_stock_in', actions: ['create', 'read'] },
+      { module: 'ims_stock_out', actions: ['create', 'read'] },
+      { module: 'ims_stock_return', actions: ['create', 'read'] },
+      { module: 'ims_items', actions: ['create', 'read'] },
+      { module: 'ims_vendors', actions: ['create', 'read'] },
+      { module: 'ims_reports', actions: ['read'] },
+      { module: 'hrms_employees', actions: ['create', 'read'] },
+      { module: 'hrms_attendance', actions: ['create', 'read'] },
+      { module: 'hrms_leave', actions: ['create', 'read'] },
+      { module: 'hrms_recruitment', actions: ['create', 'read'] },
+      { module: 'hrms_training', actions: ['create', 'read'] },
+      { module: 'hrms_performance', actions: ['create', 'read'] },
+      { module: 'hrms_payroll', actions: ['read'] },
+      { module: 'finance', actions: ['create', 'read'] },
       { module: 'dashboard', actions: ['read'] }
     ]
   },
@@ -294,6 +319,9 @@ roleSchema.statics.hasPermission = function(roleName, module, action) {
   
   if (roleName === 'super_admin' || roleName === 'dwece' || roleName === 'cmes' || roleName === 'ages_ges') return true;
   
+  // Charge Head cannot update or delete
+  if (roleName === 'charge_head' && (action === 'update' || action === 'delete' || action === 'manage' || action === 'approve')) return false;
+
   // IMS Manager cannot delete
   if (roleName === 'ims_manager' && action === 'delete') return false;
   

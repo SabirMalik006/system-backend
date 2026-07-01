@@ -23,6 +23,13 @@ const updateRolesAndUsers = async () => {
         isActive: true
       },
       {
+        name: 'Charge Head',
+        email: 'chargehead@system.com',
+        password: 'Charge@123',
+        role: 'charge_head',
+        isActive: true
+      },
+      {
         name: 'IMS Manager',
         email: 'ims_manager@system.com',
         password: 'Manager@123',
@@ -90,6 +97,7 @@ const updateRolesAndUsers = async () => {
     console.log('| Role            | Email                          | Password      |');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('| DWECE           | dwece@system.com               | Dwece@123     |');
+    console.log('| Charge Head     | chargehead@system.com          | Charge@123    |');
     console.log('| IMS Manager     | ims_manager@system.com         | Manager@123   |');
     console.log('| IMS Viewer      | ims_viewer@system.com          | Viewer@123    |');
     console.log('| HR Manager      | hr_manager@system.com          | HR@123        |');

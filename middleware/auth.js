@@ -65,6 +65,16 @@ const checkPermission = (module, action) => {
       return next();
     }
     
+    // Charge Head cannot update or delete
+    if (req.user.role === 'charge_head' && (action === 'update' || action === 'delete' || action === 'manage' || action === 'approve')) {
+      return res.status(403).json({ 
+        message: 'You are not allowed or authorize to do this',
+        role: req.user.role,
+        allowedActions: ['create', 'read'],
+        requestedAction: action
+      });
+    }
+
     // IMS Manager cannot delete
     if (req.user.role === 'ims_manager' && action === 'delete') {
       return res.status(403).json({ 

@@ -30,23 +30,23 @@ app.use(cookieParser());
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5173',
-  'https://system-two-lime.vercel.app',
-  'https://theprimelinksolutions.com',
-  'https://api.theprimelinksolutions.com'
+  'https://system-two-lime.vercel.app'
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin || process.env.NODE_ENV === 'production') {
       callback(null, true);
     } else {
-      callback(new Error(`Origin ${origin} not allowed by CORS`));
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${origin} not allowed by CORS`));
+      }
     }
   },
   credentials: true
 }));
-
-app.options('*', cors());
 app.use('/api', limiter);
 
 // Database connection (cached for Vercel serverless)

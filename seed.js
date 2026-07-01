@@ -30,6 +30,27 @@ const rolesData = {
     permissions: [{ module: 'all', actions: ['manage'] }],
     description: 'Full system access with all permissions'
   },
+  charge_head: {
+    level: 3,
+    permissions: [
+      { module: 'ims_inventory', actions: ['create', 'read'] },
+      { module: 'ims_stock_in', actions: ['create', 'read'] },
+      { module: 'ims_stock_out', actions: ['create', 'read'] },
+      { module: 'ims_stock_return', actions: ['create', 'read'] },
+      { module: 'ims_items', actions: ['create', 'read'] },
+      { module: 'ims_vendors', actions: ['create', 'read'] },
+      { module: 'ims_reports', actions: ['read'] },
+      { module: 'hrms_employees', actions: ['create', 'read'] },
+      { module: 'hrms_attendance', actions: ['create', 'read'] },
+      { module: 'hrms_leave', actions: ['create', 'read'] },
+      { module: 'hrms_training', actions: ['create', 'read'] },
+      { module: 'hrms_performance', actions: ['create', 'read'] },
+      { module: 'hrms_payroll', actions: ['read'] },
+      { module: 'finance', actions: ['create', 'read'] },
+      { module: 'dashboard', actions: ['read'] }
+    ],
+    description: 'Data entry access - create + read across all modules'
+  },
   cmes: {
     level: 1,
     permissions: [{ module: 'all', actions: ['manage'] }],
@@ -100,6 +121,13 @@ const usersData = [
     email: 'dwece@system.com',
     password: 'Dwece@123',
     role: 'dwece',
+    isActive: true
+  },
+  {
+    name: 'Charge Head',
+    email: 'chargehead@system.com',
+    password: 'Charge@123',
+    role: 'charge_head',
     isActive: true
   },
   {
