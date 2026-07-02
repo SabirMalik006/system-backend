@@ -30,19 +30,17 @@ app.use(cookieParser());
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5173',
-  'https://system-two-lime.vercel.app'
+  'https://system-two-lime.vercel.app',
+  'https://theprimelinksolutions.com',
+  'https://api.theprimelinksolutions.com'
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || process.env.NODE_ENV === 'production') {
+    if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV === 'production') {
       callback(null, true);
     } else {
-      if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error(`Origin ${origin} not allowed by CORS`));
-      }
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
     }
   },
   credentials: true
