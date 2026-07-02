@@ -16,6 +16,27 @@ dotenv.config();
 
 const app = express();
 
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'https://system-two-lime.vercel.app',
+  'https://theprimelinksolutions.com',
+  'https://www.theprimelinksolutions.com',
+  'https://api.theprimelinksolutions.com'
+];
+
+// CORS - MUST be before rate limiter for preflight requests
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV === 'production') {
+      callback(null, true);
+    } else {
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
+    }
+  },
+  credentials: true
+}));
+
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -27,25 +48,6 @@ app.use('/api', limiter);
 // Middleware
 app.use(express.json());
 app.use(cookieParser());
-const allowedOrigins = [
-  'http://localhost:3000',
-  'http://localhost:5173',
-  'https://system-two-lime.vercel.app',
-  'https://theprimelinksolutions.com',
-  'https://www.theprimelinksolutions.com'
-];
-
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV === 'production') {
-      callback(null, true);
-    } else {
-      callback(new Error(`Origin ${origin} not allowed by CORS`));
-    }
-  },
-  credentials: true
-}));
-app.use('/api', limiter);
 
 // Database connection (cached for Vercel serverless)
 let cachedClient = null;
