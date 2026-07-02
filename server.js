@@ -32,7 +32,7 @@ const allowedOrigins = [
   'http://localhost:5173',
   'https://system-two-lime.vercel.app',
   'https://theprimelinksolutions.com',
-  'https://api.theprimelinksolutions.com'
+  'https://www.theprimelinksolutions.com'
 ];
 
 app.use(cors({
